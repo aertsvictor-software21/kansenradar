@@ -6,7 +6,7 @@ from kansenradar.domain.enums import (
     SourceQuality,
 )
 from kansenradar.domain.evidence import Evidence, EvidenceError
-from kansenradar.domain.idea import Idea, IdeaCandidate, OriginalityStrategy
+from kansenradar.domain.idea import Idea, IdeaCandidate, OriginalityAssessment, OriginalityStrategy
 
 __all__ = [
     "Conclusion",
@@ -16,6 +16,7 @@ __all__ = [
     "Idea",
     "IdeaCandidate",
     "IdeaStatus",
+    "OriginalityAssessment",
     "OriginalityStrategy",
     "Sector",
     "SourceQuality",

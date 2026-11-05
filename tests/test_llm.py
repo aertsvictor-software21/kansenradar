@@ -1,7 +1,6 @@
 import pytest
 from pydantic import BaseModel
 
-from kansenradar.config import Settings
 from kansenradar.llm import (
     BudgetExceededError,
     FakeBackend,
@@ -22,7 +21,7 @@ class Verdict(BaseModel):
 
 
 def make_client(backend, max_usd=10.0):
-    return LLMClient(backend, RunBudget(max_usd), Settings())
+    return LLMClient(backend, RunBudget(max_usd))
 
 
 def test_cost_calculation_opus():

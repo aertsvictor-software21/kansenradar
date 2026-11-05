@@ -1,0 +1,128 @@
+import json
+
+import httpx
+import pytest
+from pydantic import BaseModel
+
+from kansenradar.config import Settings
+from kansenradar.llm import (
+    PRESETS,
+    BudgetExceededError,
+    LLMClient,
+    LLMOutputError,
+    LLMTruncatedError,
+    RunBudget,
+    Tier,
+    build_llm_client,
+)
+from kansenradar.llm.openai_compat import OpenAICompatBackend, ProviderError, extract_json
+
+
+class Out(BaseModel):
+    keep: bool
+    reason: str
+
+
+def reply(content: str, finish="stop", status=200, headers=None):
+    body = {"choices": [{"message": {"content": content}, "finish_reason": finish}],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 20}}
+    return httpx.Response(status, json=body, headers=headers or {})
+
+
+def backend_with(responses: list[httpx.Response], seen: list | None = None):
+    queue = list(responses)
+
+    def handler(request: httpx.Request):
+        if seen is not None:
+            seen.append(json.loads(request.content))
+        return queue.pop(0)
+
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    return OpenAICompatBackend(PRESETS["groq"], api_key="test", http=http, sleep=lambda s: None)
+
+
+def client_for(backend):
+    return LLMClient(backend, RunBudget(max_calls=10), models=PRESETS["groq"].models, free=True)
+
+
+def call(client):
+    return client.structured(task="t", tier=Tier.SCREENING, prompt="Beoordeel", schema=Out)
+
+
+def test_extract_json_handles_fences_and_chatter():
+    assert extract_json('```json\n{"a": 1}\n```') == {"a": 1}
+    assert extract_json('Hier is het: {"a": 2} groetjes') == {"a": 2}
+
+
+def test_successful_call_is_free_and_sends_schema():
+    seen = []
+    client = client_for(backend_with([reply('{"keep": true, "reason": "ok"}')], seen))
+    assert call(client).keep is True
+    assert client.budget.spent_usd == 0.0
+    body = seen[0]
+    assert body["model"] == "llama-3.1-8b-instant"
+    assert body["response_format"] == {"type": "json_object"}
+    assert '"reason"' in body["messages"][0]["content"]  # schema in system message
+
+
+def test_invalid_json_gets_one_repair_attempt():
+    seen = []
+    client = client_for(backend_with(
+        [reply('{"keep": "misschien"}'), reply('{"keep": false, "reason": "hersteld"}')], seen))
+    assert call(client).reason == "hersteld"
+    assert "voldeed niet aan het schema" in seen[1]["messages"][-1]["content"]
+
+
+def test_still_invalid_after_repair_raises():
+    client = client_for(backend_with([reply("geen json"), reply("nog steeds niet")]))
+    with pytest.raises(LLMOutputError):
+        call(client)
+
+
+def test_rate_limit_is_retried():
+    client = client_for(backend_with([
+        httpx.Response(429, headers={"retry-after": "1"}),
+        reply('{"keep": true, "reason": "na wachten"}'),
+    ]))
+    assert call(client).reason == "na wachten"
+
+
+def test_provider_down_raises_provider_error():
+    client = client_for(backend_with([httpx.Response(503)] * 5))
+    with pytest.raises(ProviderError):
+        call(client)
+
+
+def test_truncated_output_raises():
+    client = client_for(backend_with([reply('{"keep": tr', finish="length")]))
+    with pytest.raises(LLMTruncatedError):
+        call(client)
+
+
+def test_call_limit_for_free_tiers():
+    client = LLMClient(backend_with([reply('{"keep": true, "reason": "x"}')]),
+                       RunBudget(max_calls=1), models=PRESETS["groq"].models, free=True)
+    call(client)
+    with pytest.raises(BudgetExceededError):
+        call(client)
+
+
+def test_factory_without_provider_or_key_returns_none(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    assert build_llm_client(Settings(llm_provider="none"), RunBudget()) is None
+    assert build_llm_client(Settings(llm_provider="groq"), RunBudget()) is None
+    assert build_llm_client(Settings(llm_provider="bestaat-niet"), RunBudget()) is None
+
+
+def test_factory_builds_free_client_with_overrides(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    client = build_llm_client(Settings(llm_provider="groq", llm_model_analysis="ander-model"),
+                              RunBudget())
+    assert client.free is True
+    assert client.model_for(Tier.ANALYSIS) == "ander-model"
+    assert client.model_for(Tier.SCREENING) == "llama-3.1-8b-instant"
+
+
+def test_ollama_needs_no_key():
+    client = build_llm_client(Settings(llm_provider="ollama"), RunBudget())
+    assert client is not None and client.free

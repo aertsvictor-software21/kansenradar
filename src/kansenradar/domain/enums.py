@@ -48,6 +48,7 @@ class Sector(StrEnum):
 class IdeaStatus(StrEnum):
     GENERATED = "gegenereerd"
     DUPLICATE = "duplicaat"
+    REJECTED_GENERIC = "afgewezen: generiek"
     SCREENED_OUT = "afgewezen bij screening"
     IN_RESEARCH = "in onderzoek"
     ANALYSED = "geanalyseerd"

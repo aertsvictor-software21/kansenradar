@@ -17,7 +17,6 @@ from typing import Any, Callable, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-from kansenradar.config import Settings, get_settings
 from kansenradar.llm.budget import RunBudget
 from kansenradar.llm.pricing import TokenUsage
 from kansenradar.llm.prompts import BASE_SYSTEM_PROMPT
@@ -147,23 +146,28 @@ class FakeBackend:
         return LLMResponse(parsed=parsed, usage=self.usage, stop_reason=self.stop_reason, model=model)
 
 
+_DEFAULT_MODELS = {
+    "analysis": "claude-opus-5-5", "extraction": "claude-sonnet-5-5", "screening": "claude-haiku-5-5",
+}
+
+
 class LLMClient:
+    """Provider-independent entry point. Build it with providers.build_llm_client()."""
+
     def __init__(
         self,
         backend: LLMBackend,
         budget: RunBudget,
-        settings: Settings | None = None,
+        models: dict[str, str] | None = None,
+        free: bool = False,
     ) -> None:
         self.backend = backend
         self.budget = budget
-        self.settings = settings or get_settings()
+        self.models = models or dict(_DEFAULT_MODELS)
+        self.free = free
 
     def model_for(self, tier: Tier) -> str:
-        return {
-            Tier.ANALYSIS: self.settings.model_analysis,
-            Tier.EXTRACTION: self.settings.model_extraction,
-            Tier.SCREENING: self.settings.model_screening,
-        }[tier]
+        return self.models[tier.value]
 
     def structured(
         self,
@@ -179,7 +183,7 @@ class LLMClient:
     ) -> T:
         model = self.model_for(tier)
         effort = effort or {Tier.ANALYSIS: "high", Tier.EXTRACTION: "medium", Tier.SCREENING: "low"}[tier]
-        self.budget.ensure_can_afford(model, max_tokens)
+        self.budget.ensure_can_afford(model, max_tokens, free=self.free)
 
         # The stable base prompt comes first so the cached prefix is shared across tasks.
         system = BASE_SYSTEM_PROMPT + ("\n\n" + system_extra if system_extra else "")
@@ -188,7 +192,7 @@ class LLMClient:
             task=task, model=model, system=system, user=prompt, schema=schema,
             max_tokens=max_tokens, effort=effort, tools=tools,
         )
-        entry = self.budget.record(task, response.model, response.usage)
+        entry = self.budget.record(task, response.model, response.usage, free=self.free)
         log.info("llm task=%s model=%s cost=$%.4f", task, response.model, entry.cost_usd)
 
         if response.stop_reason == "refusal":

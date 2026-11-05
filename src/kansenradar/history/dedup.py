@@ -48,12 +48,17 @@ class DuplicateCheck(BaseModel):
 
 class JudgeResult(BaseModel):
     same_idea: bool
+    related: bool = Field(default=True, description="Deelt minstens doelgroep, probleem of oplossing.")
     explanation: str
     judged_by: str
 
 
 class Judge(Protocol):
     def judge(self, candidate: IdeaCandidate, existing: Idea) -> JudgeResult: ...
+
+
+# A field counts as "shared" (-> VERWANT) at this fraction of its duplicate minimum.
+RELATED_FACTOR = 0.75
 
 
 class HeuristicJudge:
@@ -79,20 +84,27 @@ class HeuristicJudge:
         minimums = {"doelgroep": t.field_target, "probleem": t.field_problem,
                     "oplossing": t.field_solution}
         failing = [k for k, v in sims.items() if v < minimums[k]]
+        shared = [k for k, v in sims.items() if v >= RELATED_FACTOR * minimums[k]]
         detail = ", ".join(f"{k} {v:.2f}" for k, v in sims.items())
         if not failing:
             return JudgeResult(
                 same_idea=True, judged_by="heuristiek",
                 explanation=f"Doelgroep, probleem en oplossing komen overeen ({detail}).",
             )
+        if not shared:
+            return JudgeResult(
+                same_idea=False, related=False, judged_by="heuristiek",
+                explanation=f"Geen enkel kernveld komt overeen ({detail}).",
+            )
         return JudgeResult(
             same_idea=False, judged_by="heuristiek",
-            explanation=f"Verschilt op {', '.join(failing)} ({detail}).",
+            explanation=f"Gedeeld: {', '.join(shared)}; verschilt op {', '.join(failing)} ({detail}).",
         )
 
 
 class _LLMJudgement(BaseModel):
     same_idea: bool = Field(description="True als het in essentie hetzelfde businessidee is.")
+    related: bool = Field(description="True als ze doelgroep, probleem of oplossing delen.")
     explanation: str = Field(description="Korte uitleg in het Nederlands.")
 
 
@@ -100,7 +112,8 @@ _JUDGE_INSTRUCTIONS = """\
 Beoordeel of twee businessideeën in essentie HETZELFDE idee zijn. Hetzelfde betekent: \
 dezelfde doelgroep, hetzelfde kernprobleem en een vergelijkbare oplossing. Een ander \
 probleem voor dezelfde doelgroep, of dezelfde technologie voor een andere doelgroep, \
-is NIET hetzelfde idee. Twijfel je, antwoord dan false."""
+is NIET hetzelfde idee. Twijfel je, antwoord dan false. Geef daarnaast aan of ze verwant zijn \
+(ze delen de doelgroep, het kernprobleem of de oplossing)."""
 
 
 class LLMJudge:
@@ -123,7 +136,8 @@ class LLMJudge:
         except (LLMError, BudgetExceededError, ConnectionError, OSError) as exc:
             log.warning("LLM-rechter niet beschikbaar (%s); heuristiek gebruikt.", exc)
             return self.fallback.judge(candidate, existing)
-        return JudgeResult(same_idea=out.same_idea, explanation=out.explanation, judged_by="llm")
+        return JudgeResult(same_idea=out.same_idea, related=out.related or out.same_idea,
+                           explanation=out.explanation, judged_by="llm")
 
 
 def _exact_key(c: IdeaCandidate) -> str:
@@ -135,6 +149,8 @@ def _earlier_outcome(match: SimilarIdea) -> str | None:
         return f"eerdere conclusie: {match.conclusion}"
     if match.status == IdeaStatus.SCREENED_OUT.value:
         return "eerder afgewezen bij screening"
+    if match.status == IdeaStatus.REJECTED_GENERIC.value:
+        return "eerder afgewezen als generiek"
     if match.status in (IdeaStatus.IN_RESEARCH.value, IdeaStatus.ANALYSED.value):
         return f"eerder al {match.status}"
     return None
@@ -176,7 +192,8 @@ class DuplicateChecker:
             ), embedding
 
         result = self.judge.judge(candidate, existing)
-        verdict = DedupVerdict.DUPLICATE if result.same_idea else DedupVerdict.RELATED
+        verdict = (DedupVerdict.DUPLICATE if result.same_idea
+                   else DedupVerdict.RELATED if result.related else DedupVerdict.UNIQUE)
         return DuplicateCheck(verdict=verdict, judged_by=result.judged_by,
                               reason=result.explanation, **base), embedding
 

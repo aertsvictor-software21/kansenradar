@@ -15,13 +15,18 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///kansenradar.db"
 
-    # Model per tier. Analysis/red team need the strongest model; screening is bulk work.
-    model_analysis: str = "claude-opus-5-5"
-    model_extraction: str = "claude-sonnet-5-5"
-    model_screening: str = "claude-haiku-5-5"
+    # LLM provider: none | groq | gemini | openrouter | ollama | anthropic (paid).
+    # Default "none": the platform works without any LLM (non-LLM fallbacks).
+    llm_provider: str = "none"
+    # Optional model overrides per tier; empty = provider default (llm/providers.py).
+    llm_model_analysis: str | None = None
+    llm_model_extraction: str | None = None
+    llm_model_screening: str | None = None
 
-    # Hard cost ceiling per pipeline run (USD). The run stops when it is reached.
-    max_run_cost_usd: float = 30.0
+    # Hard ceilings per pipeline run. Money only applies to paid providers (budget: 0).
+    max_run_cost_usd: float = 0.0
+    # Free tiers have daily request limits; this caps calls per run.
+    max_llm_calls_per_run: int = 300
 
     # Facts older than this are flagged as outdated and no longer count as FEIT.
     evidence_max_age_days: int = 365

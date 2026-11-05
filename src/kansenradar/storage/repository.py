@@ -102,6 +102,11 @@ class Repository:
                 q = q.where(IdeaRow.status == status.value)
             return [Idea.model_validate(r.data) for r in s.scalars(q)]
 
+    def used_seed_keys(self) -> set[str]:
+        """Seed keys of the originality engine that earlier runs already used."""
+        with self.session() as s:
+            return {d.get("seed_key") for d in s.scalars(select(IdeaRow.data)) if d.get("seed_key")}
+
     def most_similar(
         self, embedding: list[float], embedding_model: str, limit: int = 5
     ) -> list[SimilarIdea]:

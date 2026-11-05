@@ -10,8 +10,11 @@ from kansenradar.llm.client import (
     Tier,
 )
 from kansenradar.llm.pricing import TokenUsage, cost_usd
+from kansenradar.llm.providers import PRESETS, build_llm_client
 
 __all__ = [
+    "PRESETS",
+    "build_llm_client",
     "AnthropicBackend",
     "BudgetExceededError",
     "FakeBackend",

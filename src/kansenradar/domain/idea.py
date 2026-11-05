@@ -32,8 +32,12 @@ class IdeaCandidate(BaseModel):
     business_model: str
     strategy: OriginalityStrategy
     inspiration: str | None = Field(
-        default=None, description="Bv. buitenlands voorbeeld waarop het idee gebaseerd is."
+        default=None, description="Bv. buitenlands voorbeeld (HYPOTHESE tot geverifieerd)."
     )
+    why_now: str | None = Field(default=None, description="Waarom is dit nu kansrijk?")
+    differentiator: str | None = Field(default=None, description="Wat maakt dit niet generiek?")
+    generated_by: str = Field(default="manueel", description="llm | sjabloon | manueel")
+    seed_key: str | None = Field(default=None, description="Herkomst in de originaliteitsmotor.")
 
     def fingerprint_text(self) -> str:
         """Text used for embeddings/dedup: the essence, not the marketing wording."""
@@ -41,6 +45,17 @@ class IdeaCandidate(BaseModel):
             f"Probleem: {self.problem}\nDoelgroep: {self.target_customer}\n"
             f"Oplossing: {self.one_liner}\nVerdienmodel: {self.business_model}"
         )
+
+
+class OriginalityAssessment(BaseModel):
+    """Separate label; deliberately NOT part of the 100-point commercial score."""
+
+    score: float = Field(ge=0, le=10)
+    label: str  # laag | gemiddeld | hoog
+    novelty_vs_history: float = Field(ge=0, le=1)
+    strategy: OriginalityStrategy
+    llm_rating: float | None = Field(default=None, ge=0, le=10)
+    explanation: str
 
 
 class Idea(IdeaCandidate):
@@ -51,3 +66,5 @@ class Idea(IdeaCandidate):
     duplicate_of: str | None = None
     similar_to: list[str] = Field(default_factory=list)
     dedup_note: str | None = None
+    quality_flags: list[str] = Field(default_factory=list)
+    originality: OriginalityAssessment | None = None

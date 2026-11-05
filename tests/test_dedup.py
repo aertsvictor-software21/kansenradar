@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kansenradar.config import Settings
 from kansenradar.domain import IdeaCandidate, IdeaStatus, OriginalityStrategy, Sector
 from kansenradar.history import (
     DedupVerdict,
@@ -113,7 +112,7 @@ def test_related_idea_is_kept_with_link(repo, embedder):
     assert check.verdict is DedupVerdict.RELATED
     assert idea.status is IdeaStatus.GENERATED
     assert idea.similar_to == [first.id]
-    assert "Verschilt op" in idea.dedup_note
+    assert "verschilt op" in idea.dedup_note
 
 
 def test_batch_is_deduplicated_internally(repo, embedder):
@@ -148,12 +147,12 @@ def test_duplicates_are_not_used_as_reference(repo, embedder):
 # --- judges ---------------------------------------------------------------------
 
 def make_llm(handler):
-    return LLMClient(FakeBackend({"dedup_judge": handler}), RunBudget(1.0), Settings())
+    return LLMClient(FakeBackend({"dedup_judge": handler}), RunBudget(1.0))
 
 
 def test_llm_judge_decides_grey_zone(repo, embedder):
     a, b = pair("duplicate", 0)  # synonyms: heuristic says related, LLM recognises it
-    llm = make_llm(_LLMJudgement(same_idea=True, explanation="Zelfde doelgroep en probleem."))
+    llm = make_llm(_LLMJudgement(same_idea=True, related=True, explanation="Zelfde doelgroep en probleem."))
     checker = DuplicateChecker(repo, embedder, LLMJudge(llm, HeuristicJudge(embedder)))
     checker.register(a)
     _, check = checker.register(b)

@@ -22,10 +22,13 @@ class CostEntry(BaseModel):
 
 
 class RunBudget:
-    def __init__(self, max_usd: float) -> None:
-        if max_usd <= 0:
-            raise ValueError("max_usd moet positief zijn.")
+    """Ceiling on money (paid providers) and on the number of calls (free tiers)."""
+
+    def __init__(self, max_usd: float = 0.0, max_calls: int = 300) -> None:
+        if max_usd < 0 or max_calls <= 0:
+            raise ValueError("max_usd moet >= 0 en max_calls > 0 zijn.")
         self.max_usd = max_usd
+        self.max_calls = max_calls
         self.entries: list[CostEntry] = []
 
     @property
@@ -36,8 +39,14 @@ class RunBudget:
     def remaining_usd(self) -> float:
         return max(0.0, self.max_usd - self.spent_usd)
 
-    def ensure_can_afford(self, model: str, max_tokens: int) -> None:
-        """Refuse a call whose worst-case output cost would break the ceiling."""
+    def ensure_can_afford(self, model: str, max_tokens: int, free: bool = False) -> None:
+        """Refuse a call that could break the money ceiling or exceeds the call limit."""
+        if len(self.entries) >= self.max_calls:
+            raise BudgetExceededError(
+                f"Maximum aantal LLM-aanroepen per run bereikt ({self.max_calls})."
+            )
+        if free:
+            return
         projected = self.spent_usd + worst_case_output_cost(model, max_tokens)
         if projected > self.max_usd:
             raise BudgetExceededError(
@@ -45,8 +54,9 @@ class RunBudget:
                 f"deze aanroep kan tot ${projected:.2f} gaan (limiet ${self.max_usd:.2f})."
             )
 
-    def record(self, task: str, model: str, usage: TokenUsage) -> CostEntry:
-        entry = CostEntry(task=task, model=model, usage=usage, cost_usd=cost_usd(model, usage))
+    def record(self, task: str, model: str, usage: TokenUsage, free: bool = False) -> CostEntry:
+        cost = 0.0 if free else cost_usd(model, usage)
+        entry = CostEntry(task=task, model=model, usage=usage, cost_usd=cost)
         self.entries.append(entry)
         return entry
 

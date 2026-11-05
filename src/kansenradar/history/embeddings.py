@@ -48,7 +48,9 @@ _STOPWORDS = frozenset(
     """de het een en of van voor in op aan met door bij naar om te tot uit als dat die dit
     deze is zijn wordt worden kan kunnen hun hen ze zij wij we je jij u hij er niet geen ook
     nog wel maar dan zo per via over onder tussen alle elke meer minder zeer veel weinig
-    probleem doelgroep oplossing verdienmodel""".split()
+    probleem doelgroep oplossing verdienmodel
+    tool tools app software platform systeem digitale digitaal online automatisch automatische
+    slimme slim via""".split()
 )
 
 
@@ -70,7 +72,7 @@ class HashingEmbedder:
     # Lexical similarity cannot separate duplicates from related ideas on its own,
     # so the wide grey zone is resolved by the judge.
     thresholds = Thresholds(
-        duplicate=0.80, similar=0.18, field_target=0.55, field_problem=0.45, field_solution=0.45
+        duplicate=0.80, similar=0.18, field_target=0.55, field_problem=0.40, field_solution=0.40
     )
 
     def __init__(self, dim: int = 1024) -> None:

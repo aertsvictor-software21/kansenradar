@@ -9,7 +9,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 |---|---|---|
 | 0 | Fundament: datamodel, bewijsregels, LLM-laag, kostenbewaking, database | ✅ klaar |
 | 1 | Historische database + dedup (embeddings) | ✅ klaar |
-| 2 | Ideeëngeneratie + originaliteitsmotor | gepland |
+| 2 | Ideeëngeneratie + originaliteitsmotor | ✅ klaar |
 | 3 | Snelle screening | gepland |
 | 4 | Marktonderzoek + bronverificatie | gepland |
 | 5 | Concurrentieanalyse | gepland |
@@ -75,5 +75,47 @@ python -m kansenradar.history.calibrate
 ```
 
 Na het wisselen van embedder: `kansenradar.history.reindex()` herberekent de embeddings.
+
+## Ideeën genereren (fase 2)
+
+```bash
+python -m kansenradar genereer --aantal 10
+python -m kansenradar genereer --aantal 5 --sector logistiek --strategie INTERNATIONAL_ARBITRAGE
+python -m kansenradar ideeen            # nieuwe ideeën (--alle: ook afgewezen/duplicaten)
+python -m kansenradar toon <idee-id>
+python -m kansenradar status            # welke provider en embedder actief zijn
+```
+
+**Originaliteitsmotor**: 462 invalshoeken uit zes strategieën (probleemgedreven, ongebruikelijke
+niche, nieuwe technologie, internationaal model, marktcombinatie, fundamentele verbetering),
+plus regelgevende triggers. Invalshoeken worden gespreid over de strategieën en nooit twee keer
+gebruikt. De catalogus (`generation/catalog.py`) bevat uitsluitend **hypotheses**; niets daarvan
+telt als bewijs.
+
+**Originaliteitsscore** (0-10) is een apart label en telt **niet** mee in de commerciële score.
+
+**Generiek-filter** (zonder LLM): te brede doelgroep, modewoorden en clichéformules
+("Uber voor..."), vaag probleem, geen focus op BE/NL. Afgewezen ideeën blijven in de historiek.
+
+**Twee modi**:
+- *LLM-modus*: rijke ideeën via een gratis provider. Valt de provider weg, dan schakelt de
+  generator per invalshoek over op sjablonen.
+- *Sjabloonmodus* (geen LLM): probleem x passende technologie uit de catalogus. Eenvoudiger
+  ideeën, beperkt tot 24 (één per catalogusprobleem); daarna meldt het systeem dat de catalogus
+  uitgeput is.
+
+## LLM-providers (allemaal optioneel)
+
+| Provider | Kosten | Sleutel | Opmerking |
+|---|---|---|---|
+| `none` (standaard) | gratis | — | werkt volledig zonder LLM, met beperkte generatie |
+| `groq` | gratis versie | `GROQ_API_KEY` | snel; limieten per minuut/dag |
+| `gemini` | gratis versie | `GEMINI_API_KEY` | invoer kan door Google gebruikt worden om producten te verbeteren |
+| `openrouter` | gratis `:free`-modellen | `OPENROUTER_API_KEY` | daglimieten |
+| `ollama` | gratis, lokaal | — | offline; traag op een Chromebook (~5 GB RAM) |
+| `anthropic` | betaald | `ANTHROPIC_API_KEY` | optioneel, niet nodig |
+
+Kopieer `.env.example` naar `.env` en vul de provider in. Modelnamen veranderen vaak; pas ze aan
+met `KR_LLM_MODEL_*` als een provider "model not found" meldt.
 
 Configuratie via omgevingsvariabelen met prefix `KR_` (zie `src/kansenradar/config.py`).
