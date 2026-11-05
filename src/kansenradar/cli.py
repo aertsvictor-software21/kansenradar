@@ -1,6 +1,7 @@
 """Command-line interface (Dutch).
 
     python -m kansenradar genereer --aantal 10
+    python -m kansenradar screen
     python -m kansenradar ideeen [--alle]
     python -m kansenradar toon <idee-id>
     python -m kansenradar status
@@ -16,6 +17,7 @@ from kansenradar.config import get_settings
 from kansenradar.domain import IdeaStatus, OriginalityStrategy, Sector
 from kansenradar.generation import run_generation
 from kansenradar.history import get_embedder
+from kansenradar.screening import screen_ideas
 from kansenradar.llm import PRESETS, RunBudget, build_llm_client
 from kansenradar.storage import Repository, make_engine
 
@@ -58,13 +60,41 @@ def cmd_genereer(args, settings) -> int:
     return 0
 
 
+def cmd_screen(args, settings) -> int:
+    budget = RunBudget(max_usd=settings.max_run_cost_usd, max_calls=settings.max_llm_calls_per_run)
+    llm = None if args.zonder_llm else build_llm_client(settings, budget)
+    report = screen_ideas(_repo(settings), llm, limit=args.max)
+    print(report.summary())
+    if report.mode == "regels" and report.ideas:
+        print("Let op: regelgebaseerde screening kent marktomvang en concurrentie niet. 'DOOR' betekent\n"
+              "hier: geen dealbreaker gevonden in de tekst (lage betrouwbaarheid), niet: kansrijk.")
+    ranking = report.ranking()
+    if ranking:
+        print("\nVolgorde voor marktonderzoek:")
+        for n, idea in enumerate(ranking, 1):
+            s = idea.screening
+            print(f"  {n:2d}. {idea.research_priority:.2f}  {s.decision.value:8s} {idea.id}  {idea.title}")
+    rejected = [i for i in report.ideas if i.research_priority is None]
+    if rejected:
+        print("\nAfgewezen:")
+        for idea in rejected:
+            print(f"  - {idea.title}: {'; '.join(idea.screening.knockouts)}")
+    if llm:
+        print(f"\nLLM-aanroepen: {len(budget.entries)} | kosten: ${budget.spent_usd:.2f}")
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
-    return f"  [{idea.status.value:22s}] {idea.id}  {orig}  {idea.title}"
+    prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
+    return f"  [{idea.status.value:22s}] {idea.id}  {orig}  {prio:9s} {idea.title}"
 
 
 def cmd_ideeen(args, settings) -> int:
-    ideas = _repo(settings).list_ideas(None if args.alle else IdeaStatus.GENERATED)
+    statuses = None if args.alle else {IdeaStatus.GENERATED, IdeaStatus.SCREENED_PASS,
+                                        IdeaStatus.SCREENED_DOUBT}
+    ideas = [i for i in _repo(settings).list_ideas() if statuses is None or i.status in statuses]
+    ideas.sort(key=lambda i: i.research_priority or -1, reverse=True)
     if not ideas:
         print("Geen ideeën gevonden.")
     for idea in ideas:
@@ -86,6 +116,18 @@ def cmd_toon(args, settings) -> int:
         ("Status", idea.status.value), ("Duplicaatcontrole", idea.dedup_note),
         ("Kwaliteitssignalen", "; ".join(idea.quality_flags) or None),
     ]
+    if idea.screening:
+        sc = idea.screening
+        rows.append(("Screening", f"{sc.decision.value} — gewogen {sc.weighted_score:.2f}/5, "
+                                  f"betrouwbaarheid {sc.confidence}, door {sc.screened_by}"))
+        for cs in sc.scores:
+            mark = "" if cs.known else " (onbekend)"
+            rows.append((f"  {cs.criterion.value}", f"{cs.score}/5{mark} — {cs.motivation}"))
+        if sc.knockouts:
+            rows.append(("  Dealbreakers", "; ".join(sc.knockouts)))
+        if sc.key_assumptions:
+            rows.append(("  Aannames", "; ".join(sc.key_assumptions)))
+        rows.append(("  Onderzoeksvragen", " | ".join(sc.research_questions)))
     if idea.originality:
         rows.append(("Originaliteit", f"{idea.originality.score}/10 ({idea.originality.label}) — "
                                       f"{idea.originality.explanation}"))
@@ -122,6 +164,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--seed", type=int, default=0, help="toevalszaad voor reproduceerbaarheid")
     g.add_argument("--zonder-llm", action="store_true", help="forceer sjabloonmodus")
     g.set_defaults(func=cmd_genereer)
+
+    sc = sub.add_parser("screen", help="screen nieuwe ideeën (snelle eerste beoordeling)")
+    sc.add_argument("--max", type=int, default=None, help="maximum aantal ideeën")
+    sc.add_argument("--zonder-llm", action="store_true", help="forceer regelgebaseerde screening")
+    sc.set_defaults(func=cmd_screen)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")

@@ -9,6 +9,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from kansenradar.domain.enums import IdeaStatus, Sector
+from kansenradar.domain.screening import ScreeningResult
 
 
 class OriginalityStrategy(StrEnum):
@@ -68,3 +69,5 @@ class Idea(IdeaCandidate):
     dedup_note: str | None = None
     quality_flags: list[str] = Field(default_factory=list)
     originality: OriginalityAssessment | None = None
+    screening: ScreeningResult | None = None
+    research_priority: float | None = Field(default=None, description="Volgorde voor fase 4.")

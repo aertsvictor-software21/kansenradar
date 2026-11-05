@@ -10,7 +10,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 0 | Fundament: datamodel, bewijsregels, LLM-laag, kostenbewaking, database | ✅ klaar |
 | 1 | Historische database + dedup (embeddings) | ✅ klaar |
 | 2 | Ideeëngeneratie + originaliteitsmotor | ✅ klaar |
-| 3 | Snelle screening | gepland |
+| 3 | Snelle screening | ✅ klaar |
 | 4 | Marktonderzoek + bronverificatie | gepland |
 | 5 | Concurrentieanalyse | gepland |
 | 6 | Financiële analyse (deterministisch, 3 scenario's) | gepland |
@@ -103,6 +103,28 @@ telt als bewijs.
 - *Sjabloonmodus* (geen LLM): probleem x passende technologie uit de catalogus. Eenvoudiger
   ideeën, beperkt tot 24 (één per catalogusprobleem); daarna meldt het systeem dat de catalogus
   uitgeput is.
+
+## Snelle screening (fase 3)
+
+```bash
+python -m kansenradar screen
+```
+
+Elk nieuw idee wordt gescoord (1-5) op: **pijn en urgentie, betalingsbereidheid, bereikbaarheid
+van klanten, marktomvang BE/NL, concurrentiedruk en uitvoerbaarheid** (incl. regelgeving).
+
+- De screener levert scores; **de code beslist** (`screening/decision.py`):
+  - score 1 op pijn, betalingsbereidheid, concurrentie of uitvoerbaarheid → **AFGEWEZEN**
+  - gewogen score < 2,6 → **AFGEWEZEN**; ≥ 3,4 zonder dealbreaker → **DOOR**; anders **TWIJFEL**
+- Betrouwbaarheid is bij screening nooit "hoog": er zijn nog geen geverifieerde bronnen.
+  Alle bevindingen worden als HYPOTHESE opgeslagen, met onderzoeksvragen voor fase 4.
+- **Zonder LLM**: regels op de tekst (pijnsignalen, B2B/B2C, verdienmodel, regelgeving,
+  gezondheidsgegevens, hardware, marktplaats). Wat de regels niet kunnen weten, staat als
+  "onbekend" (neutrale score 3).
+- **Met LLM**: per 5 ideeën één aanroep; zekere regelbevindingen (geen verdienmodel) kan het
+  model niet overrulen. Mislukt de LLM, dan nemen de regels het over.
+- **Volgorde voor marktonderzoek**: commerciële score beslist; originaliteit is enkel een
+  tiebreaker (weegt nooit zwaarder dan één punt verschil op één criterium).
 
 ## LLM-providers (allemaal optioneel)
 

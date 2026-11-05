@@ -50,5 +50,7 @@ class IdeaStatus(StrEnum):
     DUPLICATE = "duplicaat"
     REJECTED_GENERIC = "afgewezen: generiek"
     SCREENED_OUT = "afgewezen bij screening"
+    SCREENED_PASS = "door screening"
+    SCREENED_DOUBT = "twijfel na screening"
     IN_RESEARCH = "in onderzoek"
     ANALYSED = "geanalyseerd"
