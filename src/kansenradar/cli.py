@@ -20,6 +20,7 @@ from kansenradar.generation import run_generation
 from kansenradar.history import get_embedder
 from kansenradar.competition import CompetitorAnalyzer, analyse_competition
 from kansenradar.finance import analyse_finance
+from kansenradar.review import review_ideas
 from kansenradar.research import (
     EurostatClient,
     LLMExtractor,
@@ -190,6 +191,37 @@ def cmd_financieel(args, settings) -> int:
     return 0
 
 
+def print_review(idea) -> None:
+    r = idea.review
+    print(f"\n{idea.title}\n  {r.summary}  (door {r.reviewed_by})")
+    for c in r.checks:
+        flag = "!" if c.alarming else " "
+        print(f"  {flag} {c.question.value:48s} {c.verdict:9s} {c.explanation}")
+    print("  Vijf grootste risico's:")
+    for k in r.risks:
+        fatal = "  FATAAL" if k.fatal else ""
+        print(f"   - [{k.likelihood}x{k.impact}={k.severity:2d}] {k.title} [{k.basis.value}]{fatal}: {k.description}")
+        print(f"       beperking: {k.mitigation}")
+    v = r.validation_test
+    print(f"  Eerste validatietest: {v.method} ({v.duration_weeks} weken, {v.cost_eur})")
+    print(f"    Te toetsen: {v.critical_assumption}")
+    for st in v.steps:
+        print(f"    • {st}")
+    print("    Geslaagd als: " + " | ".join(v.success_criteria))
+    print("    Stoppen als:  " + " | ".join(v.kill_criteria))
+
+
+def cmd_kritiek(args, settings) -> int:
+    budget = RunBudget(max_usd=settings.max_run_cost_usd, max_calls=settings.max_llm_calls_per_run)
+    llm = None if args.zonder_llm else build_llm_client(settings, budget)
+    ideas = review_ideas(_repo(settings), llm, [args.idee] if args.idee else None)
+    if not ideas:
+        print("Geen onderzochte ideeën zonder kritische beoordeling. Voer eerst 'onderzoek' uit.")
+    for idea in ideas:
+        print_review(idea)
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -294,6 +326,11 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--idee", help="één specifiek idee (herberekenen)")
     f.add_argument("--marketing", type=float, default=750, help="marketingbudget per maand (EUR)")
     f.set_defaults(func=cmd_financieel)
+
+    kr = sub.add_parser("kritiek", help="kritische investeerder + eerste validatietest")
+    kr.add_argument("--idee", help="één specifiek idee (opnieuw beoordelen)")
+    kr.add_argument("--zonder-llm", action="store_true")
+    kr.set_defaults(func=cmd_kritiek)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")

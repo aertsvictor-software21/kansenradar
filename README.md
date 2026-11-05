@@ -14,7 +14,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 4 | Marktonderzoek + bronverificatie | ✅ klaar |
 | 5 | Concurrentieanalyse | ✅ klaar |
 | 6 | Financiële analyse (deterministisch, 3 scenario's) | ✅ klaar |
-| 7 | Kritische investeerder (red team) + validatietest | gepland |
+| 7 | Kritische investeerder (red team) + validatietest | ✅ klaar |
 | 8 | Scoring, betrouwbaarheid, rangschikking | gepland |
 | 9 | Rapportage (14-puntenrapport) | gepland |
 | 10 | Dashboard | gepland |
@@ -174,6 +174,20 @@ concurrentieprijzen en Eurostat-aantallen vervangen de vuistregels. Conservatief
 aanname de ongunstige kant. Uitkomsten: startkapitaal, maandkosten, CAC, omzet, brutomarge,
 nettoresultaat (**vóór vergoeding oprichter**), break-even, terugverdientijd, benodigd kapitaal,
 LTV/CAC en schaalbaarheid.
+
+## Kritische investeerder (fase 7)
+
+```bash
+python -m kansenradar kritiek
+```
+
+Zes investeerdersvragen (verzadiging, betalingsbereidheid, kopieerbaarheid, wervingskosten,
+marges, duurzaam voordeel), elk ja/nee/onbekend met uitleg en basis. De vijf grootste risico's
+(kans x impact) met beperkende maatregel. **Fatale gebreken** (kans ≥ 4, impact 5) kunnen enkel
+uit bewijs volgen, nooit uit vuistregels. Optioneel probeert een LLM actief te bewijzen waarom
+het idee mislukt; data-gebaseerde oordelen kan het niet overrulen. De **eerste validatietest**
+(per verdienmodel, uitvoerbaar voor € 0) toetst de meest kritieke open aanname, met
+concrete succes- en stopcriteria.
 
 ## LLM-providers (allemaal optioneel)
 
