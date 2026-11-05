@@ -2,6 +2,7 @@
 
     python -m kansenradar genereer --aantal 10
     python -m kansenradar screen
+    python -m kansenradar onderzoek [--top 3] [--idee ID --url URL]
     python -m kansenradar ideeen [--alle]
     python -m kansenradar toon <idee-id>
     python -m kansenradar status
@@ -17,6 +18,14 @@ from kansenradar.config import get_settings
 from kansenradar.domain import IdeaStatus, OriginalityStrategy, Sector
 from kansenradar.generation import run_generation
 from kansenradar.history import get_embedder
+from kansenradar.research import (
+    EurostatClient,
+    LLMExtractor,
+    MarketResearcher,
+    RuleExtractor,
+    build_search,
+    research_ideas,
+)
 from kansenradar.screening import screen_ideas
 from kansenradar.llm import PRESETS, RunBudget, build_llm_client
 from kansenradar.storage import Repository, make_engine
@@ -84,6 +93,37 @@ def cmd_screen(args, settings) -> int:
     return 0
 
 
+def build_researcher(settings, llm) -> MarketResearcher:
+    return MarketResearcher(
+        search=build_search(settings),
+        extractor=LLMExtractor(llm) if llm else RuleExtractor(),
+        opendata=EurostatClient() if settings.use_open_data else None,
+        max_age_days=settings.evidence_max_age_days,
+    )
+
+
+def cmd_onderzoek(args, settings) -> int:
+    budget = RunBudget(max_usd=settings.max_run_cost_usd, max_calls=settings.max_llm_calls_per_run)
+    llm = None if args.zonder_llm else build_llm_client(settings, budget)
+    researcher = build_researcher(settings, llm)
+    ids = [args.idee] if args.idee else None
+    urls = {args.idee: args.url} if args.idee and args.url else None
+    if args.url and not args.idee:
+        print("--url vereist --idee <idee-id>.")
+        return 2
+    report = research_ideas(_repo(settings), researcher, top_n=args.top, idea_ids=ids, extra_urls=urls)
+    print(report.summary())
+    for idea in report.ideas:
+        print(f"\n{idea.title}\n  Modus: {idea.research.mode}")
+        for topic, cov in idea.research.coverage.items():
+            print(f"  {topic.value:32s} feiten {cov.facts}  schattingen {cov.estimates}  hypotheses {cov.hypotheses}")
+        if idea.research.open_questions:
+            print("  Open vragen (geen geverifieerd feit):")
+            for q in idea.research.open_questions:
+                print(f"   - {q}")
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -148,6 +188,8 @@ def cmd_status(args, settings) -> int:
         print(f"API-sleutel:   {preset.api_key_env} {ok}")
     embedder = get_embedder(settings.embedder)
     print(f"Embedder:      {embedder.name}")
+    print(f"Webzoeken:     {build_search(settings).name}")
+    print(f"Open data:     {'Eurostat' if settings.use_open_data else 'uit'}")
     return 0
 
 
@@ -169,6 +211,13 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--max", type=int, default=None, help="maximum aantal ideeën")
     sc.add_argument("--zonder-llm", action="store_true", help="forceer regelgebaseerde screening")
     sc.set_defaults(func=cmd_screen)
+
+    o = sub.add_parser("onderzoek", help="marktonderzoek voor de beste gescreende ideeën")
+    o.add_argument("--top", type=int, default=3, help="aantal ideeën (standaard 3)")
+    o.add_argument("--idee", help="onderzoek één specifiek idee")
+    o.add_argument("--url", action="append", help="eigen bron-URL (herhaalbaar, met --idee)")
+    o.add_argument("--zonder-llm", action="store_true")
+    o.set_defaults(func=cmd_onderzoek)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")

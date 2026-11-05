@@ -11,7 +11,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 1 | Historische database + dedup (embeddings) | ✅ klaar |
 | 2 | Ideeëngeneratie + originaliteitsmotor | ✅ klaar |
 | 3 | Snelle screening | ✅ klaar |
-| 4 | Marktonderzoek + bronverificatie | gepland |
+| 4 | Marktonderzoek + bronverificatie | ✅ klaar |
 | 5 | Concurrentieanalyse | gepland |
 | 6 | Financiële analyse (deterministisch, 3 scenario's) | gepland |
 | 7 | Kritische investeerder (red team) + validatietest | gepland |
@@ -125,6 +125,28 @@ van klanten, marktomvang BE/NL, concurrentiedruk en uitvoerbaarheid** (incl. reg
   model niet overrulen. Mislukt de LLM, dan nemen de regels het over.
 - **Volgorde voor marktonderzoek**: commerciële score beslist; originaliteit is enkel een
   tiebreaker (weegt nooit zwaarder dan één punt verschil op één criterium).
+
+## Marktonderzoek (fase 4)
+
+```bash
+python -m kansenradar onderzoek --top 3
+python -m kansenradar onderzoek --idee <id> --url https://... --url https://...
+```
+
+Tien onderzoeksonderwerpen per idee (vraag, klanten, probleem, huidige oplossing, concurrenten,
+marktgrootte, prijzen, bereikbaarheid, regelgeving, trends). Bronnen, allemaal gratis:
+
+- **Eurostat** (officieel, geen sleutel): aantal ondernemingen per sector (NACE) in BE en NL.
+  De doelgroep-naar-sector-koppeling wordt apart als SCHATTING vastgelegd, met beperkingen.
+- **Webzoeken** (optioneel): `KR_SEARCH_PROVIDER=searxng` (lokaal) of `tavily`
+  (gratis versie, 1.000 zoekopdrachten/maand, geen creditcard; `TAVILY_API_KEY`).
+  Brave Search vraagt sinds februari 2026 een creditcard en is daarom niet opgenomen.
+- **Eigen bronnen**: `--url` werkt ook volledig zonder zoekfunctie.
+
+**Bronverificatie**: pagina's worden opgehaald met respect voor robots.txt. Elk citaat moet
+letterlijk (of nagenoeg letterlijk) in de bron staan; cijfers moeten exact overeenkomen.
+Niet-verifieerbare citaten worden verworpen en geteld. Onderwerpen zonder geverifieerd FEIT
+verschijnen als open vragen.
 
 ## LLM-providers (allemaal optioneel)
 

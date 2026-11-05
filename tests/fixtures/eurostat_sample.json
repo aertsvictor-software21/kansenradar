@@ -1,0 +1,62 @@
+{
+ "version": "2.0",
+ "class": "dataset",
+ "label": "Enterprises by detailed NACE Rev. 2 activity",
+ "id": [
+  "freq",
+  "indic_sbs",
+  "nace_r2",
+  "geo",
+  "time"
+ ],
+ "size": [
+  1,
+  1,
+  1,
+  1,
+  3
+ ],
+ "dimension": {
+  "freq": {
+   "category": {
+    "index": {
+     "A": 0
+    }
+   }
+  },
+  "indic_sbs": {
+   "category": {
+    "index": {
+     "ENT_NR": 0
+    }
+   }
+  },
+  "nace_r2": {
+   "category": {
+    "index": {
+     "F43": 0
+    }
+   }
+  },
+  "geo": {
+   "category": {
+    "index": {
+     "BE": 0
+    }
+   }
+  },
+  "time": {
+   "category": {
+    "index": {
+     "2022": 0,
+     "2023": 1,
+     "2024": 2
+    }
+   }
+  }
+ },
+ "value": {
+  "0": 81234,
+  "1": 83456
+ }
+}

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     # (see history/embeddings.py) because their similarity scales differ.
     embedder: str = "auto"
 
+    # Web search for market research: none | searxng | tavily (free tier, TAVILY_API_KEY).
+    search_provider: str = "none"
+    searxng_url: str = "http://localhost:8888"
+    # Official open data (Eurostat, free, no key). Off = fully offline.
+    use_open_data: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

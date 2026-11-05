@@ -53,4 +53,5 @@ class IdeaStatus(StrEnum):
     SCREENED_PASS = "door screening"
     SCREENED_DOUBT = "twijfel na screening"
     IN_RESEARCH = "in onderzoek"
+    RESEARCHED = "onderzocht"
     ANALYSED = "geanalyseerd"
