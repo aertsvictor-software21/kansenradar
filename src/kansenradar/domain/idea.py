@@ -1,0 +1,51 @@
+"""Idea domain model."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from enum import StrEnum
+from uuid import uuid4
+
+from pydantic import BaseModel, Field
+
+from kansenradar.domain.enums import IdeaStatus, Sector
+
+
+class OriginalityStrategy(StrEnum):
+    MARKET_COMBINATION = "combinatie van bestaande markten"
+    INTERNATIONAL_ARBITRAGE = "internationaal model, lokaal onderontwikkeld"
+    UNUSUAL_NICHE = "ongebruikelijke niche"
+    NEW_TECH_APPLICATION = "nieuwe toepassing van bestaande technologie"
+    FUNDAMENTAL_IMPROVEMENT = "fundamentele verbetering van bestaande oplossing"
+    PROBLEM_DRIVEN = "probleemgedreven (onopgelost probleem)"
+
+
+class IdeaCandidate(BaseModel):
+    """An idea as produced by the generation module (all text in Dutch)."""
+
+    title: str = Field(min_length=3, max_length=120)
+    one_liner: str = Field(min_length=10, max_length=300)
+    problem: str
+    target_customer: str
+    sector: Sector
+    markets: list[str] = Field(default_factory=lambda: ["BE", "NL"])
+    business_model: str
+    strategy: OriginalityStrategy
+    inspiration: str | None = Field(
+        default=None, description="Bv. buitenlands voorbeeld waarop het idee gebaseerd is."
+    )
+
+    def fingerprint_text(self) -> str:
+        """Text used for embeddings/dedup: the essence, not the marketing wording."""
+        return (
+            f"Probleem: {self.problem}\nDoelgroep: {self.target_customer}\n"
+            f"Oplossing: {self.one_liner}\nVerdienmodel: {self.business_model}"
+        )
+
+
+class Idea(IdeaCandidate):
+    id: str = Field(default_factory=lambda: f"idea_{uuid4().hex[:12]}")
+    status: IdeaStatus = IdeaStatus.GENERATED
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    run_id: str | None = None
+    duplicate_of: str | None = None
