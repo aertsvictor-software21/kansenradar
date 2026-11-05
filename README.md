@@ -8,7 +8,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | Fase | Onderdeel | Status |
 |---|---|---|
 | 0 | Fundament: datamodel, bewijsregels, LLM-laag, kostenbewaking, database | ✅ klaar |
-| 1 | Historische database + dedup (embeddings) | gepland |
+| 1 | Historische database + dedup (embeddings) | ✅ klaar |
 | 2 | Ideeëngeneratie + originaliteitsmotor | gepland |
 | 3 | Snelle screening | gepland |
 | 4 | Marktonderzoek + bronverificatie | gepland |
@@ -32,12 +32,48 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
   overschrijden, wordt vooraf geweigerd.
 - **Het LLM rekent niet**: financiële berekeningen gebeuren in Python (fase 6).
 
-## Gebruik
+## Uitgangspunten voor de omgeving
+
+- **€0 budget**: geen betaalde diensten of API's vereist. Betaalde providers zijn hooguit
+  optionele extra's.
+- **Draait lokaal op een Chromebook (16 GB RAM)** in de Linux-omgeving (Crostini), alleen CPU.
+- **Werkt zonder online providers**: elke stap die een LLM kan gebruiken, heeft een
+  terugvaloptie zonder LLM.
+
+## Installatie
 
 ```bash
-pip install -e ".[dev]"
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev,semantic]"
 python -m pytest
 ```
 
-Configuratie via omgevingsvariabelen met prefix `KR_` (zie `src/kansenradar/config.py`),
-en `ANTHROPIC_API_KEY` voor de Claude API.
+`semantic` installeert fastembed (ONNX, geen PyTorch). Het meertalige model
+(`paraphrase-multilingual-MiniLM-L12-v2`, ~220 MB, ~0,5 GB RAM) wordt bij het eerste
+gebruik eenmalig gedownload. Zonder dat pakket of zonder internet valt het systeem
+automatisch terug op de lexicale embedder.
+
+## Duplicaatcontrole (fase 1)
+
+Elk nieuw idee wordt vergeleken met de historische database:
+
+1. Identiek aan een eerder idee → **DUPLICAAT**
+2. Zeer hoge gelijkenis → **DUPLICAAT**
+3. Lage gelijkenis → **UNIEK**
+4. Grijze zone → een rechter beslist: **DUPLICAAT** of **VERWANT**
+   - zonder LLM: doelgroep, probleem én oplossing moeten elk overeenkomen
+   - met LLM (optioneel): het model oordeelt; valt het weg, dan neemt de heuristiek over
+
+Bij twijfel wordt een idee als **VERWANT** gemarkeerd en niet weggegooid. Duplicaten worden
+ook opgeslagen, zodat de historiek volledig is, en eerdere uitkomsten ("eerder afgewezen")
+worden getoond.
+
+Drempels kalibreren op je eigen machine (aanbevolen na installatie van `semantic`):
+
+```bash
+python -m kansenradar.history.calibrate
+```
+
+Na het wisselen van embedder: `kansenradar.history.reindex()` herberekent de embeddings.
+
+Configuratie via omgevingsvariabelen met prefix `KR_` (zie `src/kansenradar/config.py`).

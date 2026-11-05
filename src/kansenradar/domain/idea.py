@@ -49,3 +49,5 @@ class Idea(IdeaCandidate):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     run_id: str | None = None
     duplicate_of: str | None = None
+    similar_to: list[str] = Field(default_factory=list)
+    dedup_note: str | None = None

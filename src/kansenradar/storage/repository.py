@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -26,6 +27,16 @@ def cosine(a: list[float], b: list[float]) -> float:
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     return 0.0 if na == 0 or nb == 0 else dot / (na * nb)
+
+
+@dataclass(frozen=True)
+class SimilarIdea:
+    idea_id: str
+    title: str
+    similarity: float
+    status: str
+    conclusion: str | None
+    created_at: datetime
 
 
 class Repository:
@@ -93,8 +104,8 @@ class Repository:
 
     def most_similar(
         self, embedding: list[float], embedding_model: str, limit: int = 5
-    ) -> list[tuple[str, str, float]]:
-        """Return (idea_id, title, similarity) of the closest non-duplicate ideas."""
+    ) -> list[SimilarIdea]:
+        """Closest stored ideas (excluding duplicates) embedded with the same model."""
         with self.session() as s:
             rows = s.scalars(
                 select(IdeaRow).where(
@@ -102,8 +113,30 @@ class Repository:
                     IdeaRow.status != IdeaStatus.DUPLICATE.value,
                 )
             ).all()
-            scored = [(r.id, r.title, cosine(embedding, r.embedding)) for r in rows if r.embedding]
-        return sorted(scored, key=lambda t: t[2], reverse=True)[:limit]
+            scored = [
+                SimilarIdea(r.id, r.title, cosine(embedding, r.embedding), r.status,
+                            r.conclusion, r.created_at)
+                for r in rows if r.embedding
+            ]
+        return sorted(scored, key=lambda t: t.similarity, reverse=True)[:limit]
+
+    def ideas_without_embedding(self, embedding_model: str) -> list[Idea]:
+        """Ideas not (yet) embedded with this model, e.g. after switching embedder."""
+        with self.session() as s:
+            rows = s.scalars(
+                select(IdeaRow).where(
+                    (IdeaRow.embedding_model != embedding_model) | (IdeaRow.embedding_model.is_(None))
+                )
+            ).all()
+            return [Idea.model_validate(r.data) for r in rows]
+
+    def set_embedding(self, idea_id: str, embedding: list[float], embedding_model: str) -> None:
+        with self.session() as s, s.begin():
+            row = s.get(IdeaRow, idea_id)
+            if row is None:
+                raise KeyError(idea_id)
+            row.embedding = embedding
+            row.embedding_model = embedding_model
 
     # --- evidence ---------------------------------------------------------
     def add_evidence(self, idea_id: str, items: list[Evidence]) -> None:

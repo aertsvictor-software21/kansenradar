@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     # Facts older than this are flagged as outdated and no longer count as FEIT.
     evidence_max_age_days: int = 365
 
-    # Cosine similarity above which a new idea counts as a duplicate.
-    duplicate_threshold: float = 0.88
-    # Between this and duplicate_threshold: "lijkt op" (similar), needs LLM check.
-    similar_threshold: float = 0.78
+    # Embedder for duplicate detection: "auto" (local semantic model if available,
+    # otherwise lexical), "fastembed" or "hashing". Thresholds live on each embedder
+    # (see history/embeddings.py) because their similarity scales differ.
+    embedder: str = "auto"
 
 
 @lru_cache

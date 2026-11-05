@@ -41,8 +41,9 @@ def test_most_similar_ignores_duplicates_and_other_models(repo):
     repo.save_idea(b, [1.0, 0.0], "m1")
     repo.save_idea(c, [1.0, 0.0], "m2")
     hits = repo.most_similar([0.9, 0.1], "m1")
-    assert [h[0] for h in hits] == [a.id]
-    assert hits[0][2] == pytest.approx(cosine([0.9, 0.1], [1.0, 0.0]))
+    assert [h.idea_id for h in hits] == [a.id]
+    assert hits[0].similarity == pytest.approx(cosine([0.9, 0.1], [1.0, 0.0]))
+    assert hits[0].status == IdeaStatus.GENERATED.value
 
 
 def test_evidence_roundtrip_keeps_fact_rules(repo):
