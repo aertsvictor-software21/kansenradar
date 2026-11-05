@@ -1,5 +1,6 @@
 """Command-line interface (Dutch).
 
+    python -m kansenradar run --aantal 10 --top 3     (alles in één keer)
     python -m kansenradar genereer --aantal 10
     python -m kansenradar screen
     python -m kansenradar onderzoek [--top 3] [--idee ID --url URL]
@@ -21,6 +22,7 @@ from kansenradar.history import get_embedder
 from kansenradar.competition import CompetitorAnalyzer, analyse_competition
 from kansenradar.finance import analyse_finance
 from kansenradar.review import review_ideas
+from kansenradar.reporting import write_reports
 from kansenradar.scoring import rank, score_ideas
 from kansenradar.research import (
     EurostatClient,
@@ -252,6 +254,41 @@ def cmd_ranking(args, settings) -> int:
     return 0
 
 
+def cmd_rapport(args, settings) -> int:
+    index = write_reports(_repo(settings), args.map)
+    print(f"Dashboard en rapporten geschreven: {index.resolve()}")
+    print("Open dit bestand in je browser. PDF: Afdrukken -> Opslaan als PDF.")
+    return 0
+
+
+def cmd_run(args, settings) -> int:
+    """Complete pipeline: generate -> screen -> research -> competition -> finance -> critique -> score -> report."""
+    budget = RunBudget(max_usd=settings.max_run_cost_usd, max_calls=settings.max_llm_calls_per_run)
+    llm = None if args.zonder_llm else build_llm_client(settings, budget)
+    repo = _repo(settings)
+    embedder = get_embedder(settings.embedder)
+    print(f"Modus: {'LLM via ' + settings.llm_provider if llm else 'zonder LLM'} | zoeken: "
+          f"{build_search(settings).name} | open data: {'aan' if settings.use_open_data else 'uit'}")
+    steps = [
+        ("1/8 Genereren", lambda: run_generation(repo, embedder, llm, count=args.aantal, rng_seed=args.seed,
+                                                 budget=budget).summary()),
+        ("2/8 Screenen", lambda: screen_ideas(repo, llm).summary()),
+        ("3/8 Marktonderzoek", lambda: research_ideas(repo, build_researcher(settings, llm), top_n=args.top).summary()),
+        ("4/8 Concurrentie", lambda: f"{len(analyse_competition(repo, CompetitorAnalyzer(search=build_search(settings), llm=llm)))} idee(ën)"),
+        ("5/8 Financieel", lambda: f"{len(analyse_finance(repo))} idee(ën)"),
+        ("6/8 Kritische investeerder", lambda: f"{len(review_ideas(repo, llm))} idee(ën)"),
+        ("7/8 Scoren", lambda: f"{len(score_ideas(repo, max_age_days=settings.evidence_max_age_days))} idee(ën) gescoord"),
+        ("8/8 Rapport", lambda: str(write_reports(repo, args.map).resolve())),
+    ]
+    for label, step in steps:
+        print(f"\n== {label} ==\n{step()}")
+    print("\nRangschikking:")
+    cmd_ranking(args, settings)
+    if llm:
+        print(f"\nLLM-aanroepen: {len(budget.entries)} | kosten: ${budget.spent_usd:.2f}")
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -326,6 +363,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-v", "--uitgebreid", action="store_true", help="toon logberichten")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    r = sub.add_parser("run", help="volledige pijplijn: genereren t/m rapport")
+    r.add_argument("--aantal", type=int, default=10, help="aantal invalshoeken")
+    r.add_argument("--top", type=int, default=3, help="aantal ideeën voor diepgaand onderzoek")
+    r.add_argument("--seed", type=int, default=0)
+    r.add_argument("--map", default="rapporten")
+    r.add_argument("--zonder-llm", action="store_true")
+    r.set_defaults(func=cmd_run)
+
     g = sub.add_parser("genereer", help="genereer nieuwe ideeën")
     g.add_argument("--aantal", type=int, default=10, help="aantal invalshoeken (standaard 10)")
     g.add_argument("--per-invalshoek", type=int, default=2, help="ideeën per invalshoek (LLM-modus)")
@@ -368,6 +413,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     rk = sub.add_parser("ranking", help="rangschikking van alle gescoorde ideeën")
     rk.set_defaults(func=cmd_ranking)
+
+    rp = sub.add_parser("rapport", help="schrijf dashboard (index.html) en rapporten per idee")
+    rp.add_argument("--map", default="rapporten", help="uitvoermap (standaard: rapporten)")
+    rp.set_defaults(func=cmd_rapport)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")

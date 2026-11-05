@@ -16,8 +16,8 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 6 | Financiële analyse (deterministisch, 3 scenario's) | ✅ klaar |
 | 7 | Kritische investeerder (red team) + validatietest | ✅ klaar |
 | 8 | Scoring, betrouwbaarheid, rangschikking | ✅ klaar |
-| 9 | Rapportage (14-puntenrapport) | gepland |
-| 10 | Dashboard | gepland |
+| 9 | Rapportage (14-puntenrapport) | ✅ klaar |
+| 10 | Dashboard | ✅ klaar |
 | 11 | Kalibratie op gouden set | gepland |
 
 ## Kernprincipes in de code
@@ -204,6 +204,20 @@ halen (bv. marktvraag ≤ 8/20, winstgevendheid ≤ 7/15 zonder geverifieerde pr
 bronkwaliteit en volledigheid. **Conclusie**: fataal gebrek of score < 40 → AFWIJZEN;
 betrouwbaarheid < 35% → MEER ONDERZOEK NODIG; ≥ 75 en ≥ 65% → ZEER INTERESSANTE
 OPPORTUNITEIT; ≥ 62 en ≥ 50% → KANSRIJK; ≥ 50 → EXPERIMENTEREN; anders MEER ONDERZOEK NODIG.
+
+## Rapporten en dashboard (fase 9-10)
+
+```bash
+python -m kansenradar rapport            # schrijft rapporten/index.html + rapporten/ideeen/*.html
+python -m kansenradar run --aantal 10 --top 3   # volledige pijplijn in één keer
+```
+
+Per geanalyseerd idee een HTML-rapport met de 14 onderdelen (naam, beschrijving, probleem,
+doelgroep, marktpotentieel, concurrenten, verdienmodel, prijsstrategie, financiële prognose,
+klantenwervingsstrategie, concurrentievoordeel, risico's, eerste validatietest,
+eindbeoordeling) plus alle bronnen met label FEIT/SCHATTING/HYPOTHESE. Het dashboard toont de
+trechter, de conclusies, een filter- en sorteerbare rangschikking, de onderzoekswachtrij en de
+runs. Alles werkt offline in de browser (geen externe bestanden); PDF via Afdrukken.
 
 ## LLM-providers (allemaal optioneel)
 
