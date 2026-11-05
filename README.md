@@ -15,7 +15,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 5 | Concurrentieanalyse | ✅ klaar |
 | 6 | Financiële analyse (deterministisch, 3 scenario's) | ✅ klaar |
 | 7 | Kritische investeerder (red team) + validatietest | ✅ klaar |
-| 8 | Scoring, betrouwbaarheid, rangschikking | gepland |
+| 8 | Scoring, betrouwbaarheid, rangschikking | ✅ klaar |
 | 9 | Rapportage (14-puntenrapport) | gepland |
 | 10 | Dashboard | gepland |
 | 11 | Kalibratie op gouden set | gepland |
@@ -188,6 +188,22 @@ uit bewijs volgen, nooit uit vuistregels. Optioneel probeert een LLM actief te b
 het idee mislukt; data-gebaseerde oordelen kan het niet overrulen. De **eerste validatietest**
 (per verdienmodel, uitvoerbaar voor € 0) toetst de meest kritieke open aanname, met
 concrete succes- en stopcriteria.
+
+## Scoring en rangschikking (fase 8)
+
+```bash
+python -m kansenradar score
+python -m kansenradar ranking
+```
+
+100 punten: marktvraag 20, winstgevendheid 15, klantenwerving 15, onderscheidend vermogen 15,
+schaalbaarheid 10, startkapitaal 10, uitvoerbaarheid 10, markttiming 5. Elke deelscore heeft een
+motivering. **Bewijsplafonds**: zonder geverifieerde feiten kan een criterium zijn maximum niet
+halen (bv. marktvraag ≤ 8/20, winstgevendheid ≤ 7/15 zonder geverifieerde prijzen).
+**Betrouwbaarheid** (0-100%): dekking van de tien onderwerpen, de vier kernonderwerpen,
+bronkwaliteit en volledigheid. **Conclusie**: fataal gebrek of score < 40 → AFWIJZEN;
+betrouwbaarheid < 35% → MEER ONDERZOEK NODIG; ≥ 75 en ≥ 65% → ZEER INTERESSANTE
+OPPORTUNITEIT; ≥ 62 en ≥ 50% → KANSRIJK; ≥ 50 → EXPERIMENTEREN; anders MEER ONDERZOEK NODIG.
 
 ## LLM-providers (allemaal optioneel)
 

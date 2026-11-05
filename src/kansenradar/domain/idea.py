@@ -13,6 +13,7 @@ from kansenradar.domain.competition import CompetitionAnalysis
 from kansenradar.domain.finance import FinancialModel
 from kansenradar.domain.research import ResearchSummary
 from kansenradar.domain.review import CriticalReview
+from kansenradar.domain.scorecard import Scorecard
 from kansenradar.domain.screening import ScreeningResult
 
 
@@ -79,3 +80,4 @@ class Idea(IdeaCandidate):
     competition: CompetitionAnalysis | None = None
     finance: FinancialModel | None = None
     review: CriticalReview | None = None
+    scorecard: Scorecard | None = None

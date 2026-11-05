@@ -15,6 +15,7 @@ from kansenradar.domain.review import (
     Risk,
     ValidationTest,
 )
+from kansenradar.domain.scorecard import CRITERIA_MAX, Scorecard, SubScore
 from kansenradar.domain.research import ResearchSummary, ResearchTopic, TopicCoverage
 from kansenradar.domain.screening import (
     CRITERION_WEIGHTS,
@@ -27,6 +28,9 @@ from kansenradar.domain.screening import (
 from kansenradar.domain.idea import Idea, IdeaCandidate, OriginalityAssessment, OriginalityStrategy
 
 __all__ = [
+    "CRITERIA_MAX",
+    "Scorecard",
+    "SubScore",
     "CriticalReview",
     "InvestorCheck",
     "InvestorQuestion",

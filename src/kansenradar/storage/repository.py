@@ -85,6 +85,10 @@ class Repository:
             row.status = idea.status.value
             row.duplicate_of = idea.duplicate_of
             row.data = idea.model_dump(mode="json")
+            if idea.scorecard is not None:
+                row.score_total = idea.scorecard.total
+                row.confidence = idea.scorecard.confidence
+                row.conclusion = idea.scorecard.conclusion.value
             if embedding is not None:
                 row.embedding = embedding
                 row.embedding_model = embedding_model

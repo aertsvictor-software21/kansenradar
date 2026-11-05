@@ -21,6 +21,7 @@ from kansenradar.history import get_embedder
 from kansenradar.competition import CompetitorAnalyzer, analyse_competition
 from kansenradar.finance import analyse_finance
 from kansenradar.review import review_ideas
+from kansenradar.scoring import rank, score_ideas
 from kansenradar.research import (
     EurostatClient,
     LLMExtractor,
@@ -222,6 +223,35 @@ def cmd_kritiek(args, settings) -> int:
     return 0
 
 
+def print_scorecard(idea) -> None:
+    sc = idea.scorecard
+    print(f"\n{sc.conclusion.value} — {sc.total:.0f}/100, betrouwbaarheid {sc.confidence:.0f}%\n  {idea.title} ({idea.id})")
+    for s in sc.subscores:
+        cap = f"  [plafond: {s.capped_by}]" if s.capped_by else ""
+        print(f"   {s.criterion:25s}{s.points:5.1f}/{s.max_points:<3d} {s.rationale}{cap}")
+    print(f"  Conclusie: {sc.conclusion_reason}")
+    print("  Betrouwbaarheid: " + " ".join(sc.confidence_reasons))
+
+
+def cmd_score(args, settings) -> int:
+    ranked = score_ideas(_repo(settings), [args.idee] if args.idee else None, settings.evidence_max_age_days)
+    if not ranked:
+        print("Geen onderzochte ideeën om te scoren. Voer eerst 'onderzoek' uit.")
+    for idea in ranked:
+        print_scorecard(idea)
+    return 0
+
+
+def cmd_ranking(args, settings) -> int:
+    ranked = rank(_repo(settings).list_ideas())
+    if not ranked:
+        print("Nog geen gescoorde ideeën.")
+    for n, idea in enumerate(ranked, 1):
+        sc = idea.scorecard
+        print(f"{n:3d}. {sc.conclusion.value:32s} {sc.total:5.1f}/100  betr. {sc.confidence:3.0f}%  {idea.id}  {idea.title}")
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -331,6 +361,13 @@ def build_parser() -> argparse.ArgumentParser:
     kr.add_argument("--idee", help="één specifiek idee (opnieuw beoordelen)")
     kr.add_argument("--zonder-llm", action="store_true")
     kr.set_defaults(func=cmd_kritiek)
+
+    so = sub.add_parser("score", help="scoor onderzochte ideeën (100 punten + betrouwbaarheid)")
+    so.add_argument("--idee", help="één specifiek idee")
+    so.set_defaults(func=cmd_score)
+
+    rk = sub.add_parser("ranking", help="rangschikking van alle gescoorde ideeën")
+    rk.set_defaults(func=cmd_ranking)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")
