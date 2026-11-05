@@ -19,6 +19,7 @@ from kansenradar.domain import IdeaStatus, OriginalityStrategy, Sector
 from kansenradar.generation import run_generation
 from kansenradar.history import get_embedder
 from kansenradar.competition import CompetitorAnalyzer, analyse_competition
+from kansenradar.finance import analyse_finance
 from kansenradar.research import (
     EurostatClient,
     LLMExtractor,
@@ -147,6 +148,48 @@ def cmd_concurrentie(args, settings) -> int:
     return 0
 
 
+def _eur(x: float | None) -> str:
+    return "—" if x is None else f"€ {x:,.0f}".replace(",", ".")
+
+
+def print_finance(idea) -> None:
+    f = idea.finance
+    print(f"\n{idea.title}\n  Verdienmodel: {f.revenue_model} | schaalbaarheid: {f.scalability} — {f.scalability_reason}")
+    print("  Aannames:")
+    for a in f.assumptions:
+        print(f"   - {a.label}: {a.low:g} / {a.mid:g} / {a.high:g} {a.unit} [{a.basis.value}] {a.source}")
+    rows = [
+        ("Startkapitaal", lambda r: _eur(r.startup_capital)),
+        ("Vaste kosten/maand", lambda r: _eur(r.monthly_fixed_costs)),
+        ("Marketing/maand", lambda r: _eur(r.marketing_per_month)),
+        ("CAC", lambda r: _eur(r.cac)),
+        ("Klanten na 12 / 36 mnd", lambda r: f"{r.customers_m12} / {r.customers_m36}"),
+        ("Omzet jaar 1", lambda r: _eur(r.revenue_year1)),
+        ("Omzet jaar 3", lambda r: _eur(r.revenue_year3)),
+        ("Brutomarge", lambda r: f"{r.gross_margin_pct:.0f}%"),
+        ("Netto jaar 3*", lambda r: _eur(r.net_year3)),
+        ("Break-even (maand)", lambda r: str(r.operational_break_even_month or "> 36")),
+        ("Terugverdiend (maand)", lambda r: str(r.payback_month or "> 36")),
+        ("Benodigd kapitaal", lambda r: _eur(r.capital_needed)),
+        ("LTV / CAC", lambda r: f"{r.ltv_cac:.1f}"),
+    ]
+    sc = f.scenarios
+    print(f"  {'':24s}{'conservatief':>15s}{'realistisch':>15s}{'optimistisch':>15s}")
+    for label, fn in rows:
+        print(f"  {label:24s}" + "".join(f"{fn(sc[n]):>15s}" for n in ("conservatief", "realistisch", "optimistisch")))
+    for n in f.notes:
+        print(f"  * {n}")
+
+
+def cmd_financieel(args, settings) -> int:
+    ideas = analyse_finance(_repo(settings), [args.idee] if args.idee else None, args.marketing)
+    if not ideas:
+        print("Geen onderzochte ideeën zonder financiële analyse. Voer eerst 'onderzoek' uit.")
+    for idea in ideas:
+        print_finance(idea)
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -246,6 +289,11 @@ def build_parser() -> argparse.ArgumentParser:
     k.add_argument("--idee", help="één specifiek idee")
     k.add_argument("--zonder-llm", action="store_true")
     k.set_defaults(func=cmd_concurrentie)
+
+    f = sub.add_parser("financieel", help="financiële analyse (3 scenario's)")
+    f.add_argument("--idee", help="één specifiek idee (herberekenen)")
+    f.add_argument("--marketing", type=float, default=750, help="marketingbudget per maand (EUR)")
+    f.set_defaults(func=cmd_financieel)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")

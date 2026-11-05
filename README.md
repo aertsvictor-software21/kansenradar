@@ -13,7 +13,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 3 | Snelle screening | ✅ klaar |
 | 4 | Marktonderzoek + bronverificatie | ✅ klaar |
 | 5 | Concurrentieanalyse | ✅ klaar |
-| 6 | Financiële analyse (deterministisch, 3 scenario's) | gepland |
+| 6 | Financiële analyse (deterministisch, 3 scenario's) | ✅ klaar |
 | 7 | Kritische investeerder (red team) + validatietest | gepland |
 | 8 | Scoring, betrouwbaarheid, rangschikking | gepland |
 | 9 | Rapportage (14-puntenrapport) | gepland |
@@ -161,6 +161,19 @@ en worden als FEIT met citaat opgeslagen. Verzadiging: 0-1 directe concurrenten 
 2-5 = gemiddeld, 6+ = hoog. **Zonder webzoekfunctie is de verzadiging "onbekend"**, niet
 "laag". Met LLM: indeling direct/indirect, sterktes, zwaktes en gaten (hypotheses); offline
 mag het LLM bekende concurrenten noemen, maar enkel als HYPOTHESE.
+
+## Financiële analyse (fase 6)
+
+```bash
+python -m kansenradar financieel [--marketing 750]
+```
+
+Volledig deterministisch (geen LLM): 36 maanden simulatie met aanloop, churn en marktplafond.
+Elke aanname heeft een bandbreedte en een basis (FEIT/SCHATTING/HYPOTHESE). Geverifieerde
+concurrentieprijzen en Eurostat-aantallen vervangen de vuistregels. Conservatief = voor elke
+aanname de ongunstige kant. Uitkomsten: startkapitaal, maandkosten, CAC, omzet, brutomarge,
+nettoresultaat (**vóór vergoeding oprichter**), break-even, terugverdientijd, benodigd kapitaal,
+LTV/CAC en schaalbaarheid.
 
 ## LLM-providers (allemaal optioneel)
 
