@@ -18,9 +18,11 @@ from kansenradar.config import get_settings
 from kansenradar.domain import IdeaStatus, OriginalityStrategy, Sector
 from kansenradar.generation import run_generation
 from kansenradar.history import get_embedder
+from kansenradar.competition import CompetitorAnalyzer, analyse_competition
 from kansenradar.research import (
     EurostatClient,
     LLMExtractor,
+    PageFetcher,
     MarketResearcher,
     RuleExtractor,
     build_search,
@@ -124,6 +126,27 @@ def cmd_onderzoek(args, settings) -> int:
     return 0
 
 
+def cmd_concurrentie(args, settings) -> int:
+    budget = RunBudget(max_usd=settings.max_run_cost_usd, max_calls=settings.max_llm_calls_per_run)
+    llm = None if args.zonder_llm else build_llm_client(settings, budget)
+    analyzer = CompetitorAnalyzer(search=build_search(settings), fetcher=PageFetcher(), llm=llm)
+    ideas = analyse_competition(_repo(settings), analyzer, [args.idee] if args.idee else None)
+    if not ideas:
+        print("Geen onderzochte ideeën zonder concurrentieanalyse. Voer eerst 'onderzoek' uit.")
+    for idea in ideas:
+        c = idea.competition
+        print(f"\n{idea.title}\n  Modus: {c.mode}\n  Verzadiging: {c.saturation} — {c.saturation_reason}")
+        if c.price_median_month is not None:
+            print(f"  Prijzen (geverifieerd, per maand): min € {c.price_min_month:g}, mediaan "
+                  f"€ {c.price_median_month:g}, max € {c.price_max_month:g} (n={c.verified_price_count})")
+        for comp in c.competitors:
+            tag = " [modelkennis, te verifiëren]" if comp.source == "modelkennis" else ""
+            print(f"   - {comp.kind:9s} {comp.name} ({comp.domain}){tag}")
+        for gap in c.gaps:
+            print(f"   ? gat (hypothese): {gap}")
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -218,6 +241,11 @@ def build_parser() -> argparse.ArgumentParser:
     o.add_argument("--url", action="append", help="eigen bron-URL (herhaalbaar, met --idee)")
     o.add_argument("--zonder-llm", action="store_true")
     o.set_defaults(func=cmd_onderzoek)
+
+    k = sub.add_parser("concurrentie", help="concurrentieanalyse voor onderzochte ideeën")
+    k.add_argument("--idee", help="één specifiek idee")
+    k.add_argument("--zonder-llm", action="store_true")
+    k.set_defaults(func=cmd_concurrentie)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")

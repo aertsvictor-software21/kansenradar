@@ -9,6 +9,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from kansenradar.domain.enums import IdeaStatus, Sector
+from kansenradar.domain.competition import CompetitionAnalysis
 from kansenradar.domain.research import ResearchSummary
 from kansenradar.domain.screening import ScreeningResult
 
@@ -73,3 +74,4 @@ class Idea(IdeaCandidate):
     screening: ScreeningResult | None = None
     research_priority: float | None = Field(default=None, description="Volgorde voor fase 4.")
     research: ResearchSummary | None = None
+    competition: CompetitionAnalysis | None = None

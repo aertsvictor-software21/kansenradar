@@ -12,7 +12,7 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 2 | Ideeëngeneratie + originaliteitsmotor | ✅ klaar |
 | 3 | Snelle screening | ✅ klaar |
 | 4 | Marktonderzoek + bronverificatie | ✅ klaar |
-| 5 | Concurrentieanalyse | gepland |
+| 5 | Concurrentieanalyse | ✅ klaar |
 | 6 | Financiële analyse (deterministisch, 3 scenario's) | gepland |
 | 7 | Kritische investeerder (red team) + validatietest | gepland |
 | 8 | Scoring, betrouwbaarheid, rangschikking | gepland |
@@ -147,6 +147,20 @@ marktgrootte, prijzen, bereikbaarheid, regelgeving, trends). Bronnen, allemaal g
 letterlijk (of nagenoeg letterlijk) in de bron staan; cijfers moeten exact overeenkomen.
 Niet-verifieerbare citaten worden verworpen en geteld. Onderwerpen zonder geverifieerd FEIT
 verschijnen als open vragen.
+
+## Concurrentieanalyse (fase 5)
+
+```bash
+python -m kansenradar concurrentie
+```
+
+Kandidaten uit gerichte zoekopdrachten en uit bedrijfsbronnen van het marktonderzoek; media,
+fora, reviewsites en overheden zijn bronnen, geen concurrenten. Prijzen komen alleen van de
+eigen pagina's van concurrenten (ook /prijzen, /pricing, /tarieven), omgerekend naar per maand,
+en worden als FEIT met citaat opgeslagen. Verzadiging: 0-1 directe concurrenten = laag,
+2-5 = gemiddeld, 6+ = hoog. **Zonder webzoekfunctie is de verzadiging "onbekend"**, niet
+"laag". Met LLM: indeling direct/indirect, sterktes, zwaktes en gaten (hypotheses); offline
+mag het LLM bekende concurrenten noemen, maar enkel als HYPOTHESE.
 
 ## LLM-providers (allemaal optioneel)
 
