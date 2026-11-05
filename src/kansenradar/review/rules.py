@@ -16,6 +16,8 @@ from kansenradar.history.embeddings import normalize
 
 Q = InvestorQuestion
 F, E, H = EvidenceType.FACT, EvidenceType.ESTIMATE, EvidenceType.HYPOTHESIS
+# Fewer realistically reachable customers than this cannot carry a business.
+MIN_REACHABLE_CUSTOMERS = 50
 MOAT_WORDS = ("data", "netwerk", "exclusie", "integratie", "certific", "licentie", "community",
               "merk", "patent", "partnership", "koppeling", "schaal", "overstapkost")
 
@@ -123,7 +125,14 @@ def rule_risks(idea: Idea, checks: list[InvestorCheck]) -> list[Risk]:
                                           f"benodigd kapitaal € {cons.capital_needed:,.0f}.".replace(",", "."),
                               likelihood=3, impact=4, basis=H, source="regels",
                               mitigation="Valideer prijs en CAC vóór investeringen; houd vaste kosten minimaal."))
-        if real.market_cap_reached_month and real.market_cap_reached_month <= 24:
+        reachable = fin.assumption("market").mid * fin.assumption("penetration").mid / 100
+        if reachable < MIN_REACHABLE_CUSTOMERS:
+            risks.append(Risk(title="Markt te klein",
+                              description=f"Realistisch slechts ~{reachable:.0f} bereikbare klanten; dat draagt "
+                                          "geen levensvatbaar bedrijf.",
+                              likelihood=4, impact=5, basis=fin.assumption("market").basis, source="regels",
+                              mitigation="Verbreed naar aanpalende doelgroepen of landen, of kies een ander idee."))
+        elif real.market_cap_reached_month and real.market_cap_reached_month <= 24:
             risks.append(Risk(title="Markt te klein",
                               description=f"Het marktplafond wordt in maand {real.market_cap_reached_month} bereikt.",
                               likelihood=4, impact=4, basis=fin.assumption("market").basis, source="regels",

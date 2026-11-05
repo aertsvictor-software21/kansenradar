@@ -1,0 +1,250 @@
+[
+ {
+  "sector": "TRADITIONAL",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "A. Sterke B2B-niche met bewijs",
+  "omschrijving": "App die ingesproken notities omzet in werfverslagen en meerwerkfacturen.",
+  "probleem": "Kleine aannemers verliezen elke week avonden aan werfverslagen en lopen omzet mis door vergeten meerwerk.",
+  "doelgroep": "aannemers met 1-20 werknemers",
+  "verdienmodel": "abonnement per gebruiker",
+  "onderscheidend": "Integratie met bestaande boekhoudsoftware en eigen data over meerwerk.",
+  "waarom_nu": "Spraakherkenning in het Nederlands is betrouwbaar en goedkoop geworden.",
+  "feiten": {
+   "DEMAND": "OFFICIAL",
+   "CUSTOMERS": "OFFICIAL",
+   "PROBLEM": "OFFICIAL",
+   "MARKET_SIZE": "OFFICIAL",
+   "TRENDS": "OFFICIAL",
+   "PRICING": "COMPANY",
+   "COMPETITORS": "COMPANY",
+   "REACH": "INDUSTRY",
+   "CURRENT_SOLUTION": "MEDIA"
+  },
+  "concurrentie": {
+   "verzadiging": "laag",
+   "direct": 1,
+   "prijzen": [
+    39,
+    49,
+    59
+   ]
+  },
+  "financieel": {
+   "basis": "SCHATTING",
+   "cac": [
+    150,
+    220,
+    300
+   ],
+   "churn": [
+    1.5,
+    2,
+    3
+   ],
+   "market": [
+    15000,
+    20000,
+    25000
+   ]
+  },
+  "verwacht": [
+   "KANSRIJK",
+   "ZEER INTERESSANTE OPPORTUNITEIT"
+  ]
+ },
+ {
+  "sector": "TRADITIONAL",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "B. Verzadigde markt",
+  "omschrijving": "Online boekhoudsoftware voor zelfstandigen.",
+  "probleem": "Zelfstandigen verliezen tijd aan boekhouding en btw-aangiftes en maken fouten.",
+  "doelgroep": "zelfstandigen in bijberoep",
+  "verdienmodel": "abonnement per maand",
+  "feiten": {
+   "DEMAND": "OFFICIAL",
+   "CUSTOMERS": "OFFICIAL",
+   "PROBLEM": "OFFICIAL",
+   "MARKET_SIZE": "OFFICIAL",
+   "TRENDS": "OFFICIAL",
+   "PRICING": "COMPANY",
+   "COMPETITORS": "COMPANY",
+   "REACH": "INDUSTRY",
+   "CURRENT_SOLUTION": "MEDIA"
+  },
+  "concurrentie": {
+   "verzadiging": "hoog",
+   "direct": 9,
+   "prijzen": [
+    9,
+    15,
+    19,
+    25
+   ]
+  },
+  "verwacht": [
+   "AFWIJZEN"
+  ]
+ },
+ {
+  "sector": "TRADITIONAL",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "C. Geen verdienmodel",
+  "omschrijving": "Platform waar buren gereedschap delen.",
+  "probleem": "Huishoudens kopen dure boormachines die ze zelden gebruiken en verspillen zo geld.",
+  "doelgroep": "huishoudens in steden",
+  "verdienmodel": "nog te bepalen",
+  "verwacht": [
+   "AFWIJZEN"
+  ]
+ },
+ {
+  "sector": "TRADITIONAL",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "D. Mooi verhaal zonder bewijs",
+  "omschrijving": "AI-coach die kmo's helpt duurzamer te ondernemen.",
+  "probleem": "Kmo's weten niet hoe ze moeten verduurzamen en verliezen daardoor klanten en subsidies.",
+  "doelgroep": "kmo's in de maakindustrie",
+  "verdienmodel": "abonnement per bedrijf",
+  "onderscheidend": "Unieke AI met eigen data.",
+  "waarom_nu": "Duurzaamheidsrapportering wordt verplicht.",
+  "verwacht": [
+   "MEER ONDERZOEK NODIG"
+  ]
+ },
+ {
+  "sector": "CONSUMER_PRODUCTS",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "E. Slechte eenheidseconomie, wel bewijs",
+  "omschrijving": "App die gezinnen helpt hun boodschappen te plannen.",
+  "probleem": "Gezinnen verspillen voedsel en geld door slechte planning van boodschappen.",
+  "doelgroep": "jonge gezinnen",
+  "verdienmodel": "abonnement per maand",
+  "feiten": {
+   "DEMAND": "OFFICIAL",
+   "CUSTOMERS": "OFFICIAL",
+   "PROBLEM": "OFFICIAL",
+   "MARKET_SIZE": "OFFICIAL",
+   "TRENDS": "OFFICIAL",
+   "PRICING": "COMPANY",
+   "COMPETITORS": "COMPANY",
+   "REACH": "INDUSTRY",
+   "CURRENT_SOLUTION": "MEDIA"
+  },
+  "concurrentie": {
+   "verzadiging": "gemiddeld",
+   "direct": 4,
+   "prijzen": [
+    3,
+    4,
+    5
+   ]
+  },
+  "financieel": {
+   "basis": "SCHATTING",
+   "cac": [
+    60,
+    80,
+    120
+   ],
+   "churn": [
+    8,
+    10,
+    12
+   ]
+  },
+  "verwacht": [
+   "AFWIJZEN",
+   "MEER ONDERZOEK NODIG",
+   "EXPERIMENTEREN"
+  ]
+ },
+ {
+  "sector": "TRADITIONAL",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "F. Gereguleerde fintech",
+  "omschrijving": "App die kleine leningen aan aannemers verstrekt.",
+  "probleem": "Aannemers verliezen opdrachten door trage kredietaanvragen bij banken.",
+  "doelgroep": "aannemers met 1-20 werknemers",
+  "verdienmodel": "rente en commissie per lening",
+  "feiten": {
+   "DEMAND": "MEDIA",
+   "MARKET_SIZE": "OFFICIAL"
+  },
+  "verwacht": [
+   "AFWIJZEN",
+   "MEER ONDERZOEK NODIG",
+   "EXPERIMENTEREN"
+  ]
+ },
+ {
+  "sector": "TRADITIONAL",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "G. Te kleine markt",
+  "omschrijving": "Planningssoftware voor klokkenluiders van beiaarden.",
+  "probleem": "Beiaardiers verliezen tijd met het plannen van concerten en onderhoud van beiaarden.",
+  "doelgroep": "beiaardiers in België en Nederland",
+  "verdienmodel": "abonnement per gebruiker",
+  "feiten": {
+   "DEMAND": "OFFICIAL",
+   "CUSTOMERS": "OFFICIAL",
+   "PROBLEM": "OFFICIAL",
+   "MARKET_SIZE": "OFFICIAL",
+   "TRENDS": "OFFICIAL",
+   "PRICING": "COMPANY",
+   "COMPETITORS": "COMPANY",
+   "REACH": "INDUSTRY",
+   "CURRENT_SOLUTION": "MEDIA"
+  },
+  "concurrentie": {
+   "verzadiging": "laag",
+   "direct": 0,
+   "prijzen": [
+    20,
+    30
+   ]
+  },
+  "financieel": {
+   "basis": "SCHATTING",
+   "market": [
+    150,
+    200,
+    250
+   ]
+  },
+  "verwacht": [
+   "AFWIJZEN"
+  ]
+ },
+ {
+  "sector": "ECOMMERCE",
+  "strategie": "NEW_TECH_APPLICATION",
+  "synthetisch": true,
+  "naam": "H. Middelmatig, deels onderbouwd",
+  "omschrijving": "Tool die retouren van kleine webshops automatisch verwerkt.",
+  "probleem": "Kleine webshops verliezen tijd en marge aan de handmatige verwerking van retouren.",
+  "doelgroep": "kleine webshops in mode",
+  "verdienmodel": "prijs per verwerkte retour",
+  "feiten": {
+   "DEMAND": "MEDIA",
+   "MARKET_SIZE": "OFFICIAL",
+   "PROBLEM": "INDUSTRY",
+   "COMPETITORS": "COMPANY"
+  },
+  "concurrentie": {
+   "verzadiging": "gemiddeld",
+   "direct": 3,
+   "prijzen": []
+  },
+  "verwacht": [
+   "MEER ONDERZOEK NODIG",
+   "EXPERIMENTEREN"
+  ]
+ }
+]

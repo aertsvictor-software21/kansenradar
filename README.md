@@ -18,7 +18,40 @@ onderzoekt, kritisch beoordeelt en rangschikt. Alle output is Nederlandstalig.
 | 8 | Scoring, betrouwbaarheid, rangschikking | ✅ klaar |
 | 9 | Rapportage (14-puntenrapport) | ✅ klaar |
 | 10 | Dashboard | ✅ klaar |
-| 11 | Kalibratie op gouden set | gepland |
+| 11 | Kalibratie op gouden set | ✅ kader klaar (synthetische startset) |
+
+## Snel starten op een Chromebook
+
+1. Zet Linux aan: **Instellingen → Over ChromeOS → Ontwikkelaars → Linux-ontwikkelomgeving**
+   (10-15 GB schijfruimte volstaat).
+2. Open de Terminal en installeer:
+
+```bash
+sudo apt update && sudo apt install -y python3-venv git
+```
+
+```bash
+cd kansenradar && python3 -m venv .venv && source .venv/bin/activate
+```
+
+```bash
+pip install -e ".[dev,semantic]"
+```
+
+3. Controleer en draai alles in één keer (werkt volledig zonder sleutels):
+
+```bash
+python -m pytest -q
+```
+
+```bash
+python -m kansenradar run --aantal 10 --top 3
+```
+
+4. Open `rapporten/index.html` in de browser (Bestanden-app → Linux-bestanden → kansenradar).
+
+Optioneel, voor veel betere resultaten (gratis): kopieer `.env.example` naar `.env` en vul een
+gratis LLM-sleutel (Groq of Gemini) en een gratis zoeksleutel (Tavily) in.
 
 ## Kernprincipes in de code
 
@@ -218,6 +251,17 @@ klantenwervingsstrategie, concurrentievoordeel, risico's, eerste validatietest,
 eindbeoordeling) plus alle bronnen met label FEIT/SCHATTING/HYPOTHESE. Het dashboard toont de
 trechter, de conclusies, een filter- en sorteerbare rangschikking, de onderzoekswachtrij en de
 runs. Alles werkt offline in de browser (geen externe bestanden); PDF via Afdrukken.
+
+## Kalibratie (fase 11)
+
+```bash
+python -m kansenradar kalibreer
+```
+
+Draait de beoordelingsketen op gelabelde gevallen en meldt afwijkingen, plus een
+optimismecontrole (ZEER INTERESSANT moet zeldzaam blijven). De meegeleverde 8 gevallen zijn
+**synthetisch**: ze toetsen de logica, niet de werkelijkheid. Voeg echte gevallen toe (zie
+`kalibratie/README.md`), bij voorkeur de uitkomsten van je eigen validatietests.
 
 ## LLM-providers (allemaal optioneel)
 

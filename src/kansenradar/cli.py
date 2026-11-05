@@ -289,6 +289,15 @@ def cmd_run(args, settings) -> int:
     return 0
 
 
+def cmd_kalibreer(args, settings) -> int:
+    from pathlib import Path
+
+    from kansenradar.calibration import DEFAULT_CASES, report, run_calibration
+    results = run_calibration(Path(args.bestand) if args.bestand else DEFAULT_CASES)
+    print(report(results))
+    return 0 if all(r.ok for r in results) else 1
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -417,6 +426,10 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("rapport", help="schrijf dashboard (index.html) en rapporten per idee")
     rp.add_argument("--map", default="rapporten", help="uitvoermap (standaard: rapporten)")
     rp.set_defaults(func=cmd_rapport)
+
+    kb = sub.add_parser("kalibreer", help="toets de beoordelingslogica op gelabelde gevallen")
+    kb.add_argument("--bestand", help="JSON met gevallen (standaard: kalibratie/archetypes.json)")
+    kb.set_defaults(func=cmd_kalibreer)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")
