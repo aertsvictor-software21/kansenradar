@@ -15,8 +15,13 @@ from kansenradar.history.embeddings import normalize
 BROAD_TARGETS = {
     "iedereen", "bedrijven", "consumenten", "kmo s", "kmos", "kmo", "ondernemers", "particulieren",
     "mensen", "klanten", "gebruikers", "bedrijven en particulieren", "b2b", "b2c", "het grote publiek",
-    "alle bedrijven", "zelfstandigen", "organisaties",
+    "alle bedrijven", "zelfstandigen", "organisaties", "mkb", "mkb s", "mkbs", "mkb ers", "mkb bedrijven",
+    "kmo s en mkb s", "mkb s en kmo s", "kleine bedrijven", "ondernemingen", "kmo bedrijven",
 }
+# Words that do not make a target customer more specific.
+FILLER = {"in", "en", "de", "het", "van", "voor", "uit", "nederland", "nederlandse", "belgie", "belgische",
+          "benelux", "vlaanderen", "vlaamse", "wallonie", "brussel", "europa", "alle", "kleine", "middelgrote",
+          "grote", "lokale"}
 BUZZWORDS = (
     "uber voor", "airbnb voor", "netflix voor", "tinder voor", "revolutionair", "alles in een",
     "one stop shop", "innovatief platform", "slimme oplossing", "disruptief", "blockchain",
@@ -34,7 +39,8 @@ class QualityCheck:
 def check_quality(c: IdeaCandidate) -> QualityCheck:
     flags: list[str] = []
     target = normalize(c.target_customer)
-    if target in BROAD_TARGETS:
+    core = " ".join(w for w in target.split() if w not in FILLER)
+    if target in BROAD_TARGETS or core in BROAD_TARGETS or not core:
         flags.append(f"doelgroep te breed ('{c.target_customer}')")
     text = " " + normalize(f"{c.title} {c.one_liner} {c.differentiator or ''}") + " "
     for bw in BUZZWORDS:

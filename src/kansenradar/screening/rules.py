@@ -19,7 +19,7 @@ PAIN_SIGNALS = (
     " duur ", "te duur",
 )
 REGULATED = (
-    "diagnose", "medisch hulpmiddel", "geneesmiddel", "voorschrift", "krediet", "lening", "belegg",
+    "diagnos", "radiolog", "klinische beslissing", "medisch hulpmiddel", "medical device", "geneesmiddel", "voorschrift", "krediet", "lening", "belegg",
     "verzeker", "crypto", "kansspel", "gokken", "betalingsdienst", "bankrekening", "alcohol",
     "tabak", "financiering", "patientengegevens", "medische gegevens",
 )

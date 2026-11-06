@@ -203,3 +203,14 @@ def test_cli_generate_and_show(tmp_path, monkeypatch, capsys):
         assert cli_main(["genereer", "--aantal", "1", "--sector", "logistiek"]) == 0
     finally:
         get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("target", ["MKB's", "mkb's in Nederland en België", "Kleine kmo's in Vlaanderen",
+                                    "Belgische ondernemingen"])
+def test_broad_targets_in_any_wording_are_generic(target):
+    q = check_quality(good_candidate(target_customer=target))
+    assert q.is_generic and q.flags[0].startswith("doelgroep te breed")
+
+
+def test_specific_target_with_region_is_fine():
+    assert not check_quality(good_candidate(target_customer="aannemers in Vlaanderen")).is_generic

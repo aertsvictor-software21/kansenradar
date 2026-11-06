@@ -207,3 +207,11 @@ def test_cli_screen(tmp_path, monkeypatch, capsys):
         assert "Onderzoeksvragen" in capsys.readouterr().out
     finally:
         get_settings.cache_clear()
+
+
+def test_rules_medical_diagnostics_is_regulated():
+    r = screen_by_rules(idea(title="EdgeAI Diagnostiek Suite", one_liner="AI die röntgenbeelden analyseert.",
+                             problem="Radiologiepraktijken verliezen tijd aan het beoordelen van beelden en missen afwijkingen.",
+                             target_customer="radiologiepraktijken"))
+    from kansenradar.domain import Criterion
+    assert r.score_of(Criterion.FEASIBILITY) == 2
