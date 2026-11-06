@@ -132,7 +132,7 @@ def rule_risks(idea: Idea, checks: list[InvestorCheck]) -> list[Risk]:
                                           "geen levensvatbaar bedrijf.",
                               likelihood=4, impact=5, basis=fin.assumption("market").basis, source="regels",
                               mitigation="Verbreed naar aanpalende doelgroepen of landen, of kies een ander idee."))
-        elif real.market_cap_reached_month and real.market_cap_reached_month <= 24:
+        elif real.market_cap_reached_month and real.market_cap_reached_month <= 24 and fin.revenue_model != "dienst":
             risks.append(Risk(title="Markt te klein",
                               description=f"Het marktplafond wordt in maand {real.market_cap_reached_month} bereikt.",
                               likelihood=4, impact=4, basis=fin.assumption("market").basis, source="regels",
@@ -199,6 +199,20 @@ def validation_test(idea: Idea, checks: list[InvestorCheck]) -> ValidationTest:
                               "≥ 5 van 10 gesprekken bevestigen betalingsbereidheid aan de getoonde prijs."],
             kill_criteria=["< 3% inschrijvingen na 300 bezoekers.", "Kanalen laten geen promotie toe en er is geen alternatief."],
             duration_weeks=3, cost_eur="€ 0")
+    if rm == "dienst":
+        return ValidationTest(
+            critical_assumption=f"{t} betalen {price_txt} per maand om dit uit handen te geven",
+            method="Eerste betalende klant via eigen prospectie (verkopen vóór je iets bouwt)",
+            steps=[f"Maak een lijst van 30 {t} in je eigen buurt of regio.",
+                   "Ga langs of bel 15 van hen; vraag hoe ze dit vandaag doen en wat het hen kost.",
+                   "Stel een eenvoudig aanbod op één A4 op: wat je doet, voor welke prijs per maand.",
+                   f"Bied de eerste maand aan tegen {price_txt}, of een betaalde proefmaand tegen halve prijs.",
+                   "Lever de dienst eerst volledig manueel met gratis tools; automatiseer pas later."],
+            success_criteria=["Minstens 2 betalende klanten binnen 30 dagen.",
+                              "Minstens 1 klant verlengt na de eerste maand."],
+            kill_criteria=["Na 15 gesprekken herkent minder dan een derde het probleem.",
+                           "Na 30 dagen geen enkele betalende klant, ook niet tegen halve prijs."],
+            duration_weeks=4, cost_eur="€ 0 tot € 50 (domeinnaam, visitekaartjes)")
     if rm == "transactie":
         return ValidationTest(
             critical_assumption=f"Beide kanten ({t} en hun tegenpartij) willen via jou handelen en de commissie betalen",

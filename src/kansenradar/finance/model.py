@@ -24,6 +24,8 @@ def simulate(values: dict[str, float], scenario: str, months: int = HORIZON) -> 
     price, cac, churn = values["price"], values["cac"], values["churn"] / 100
     margin, fixed, marketing = values["margin"] / 100, values["fixed"], values["marketing"]
     ceiling = values["market"] * values["penetration"] / 100
+    if "capacity" in values:  # a service cannot serve more clients than the founder's hours allow
+        ceiling = min(ceiling, values["capacity"])
     customers, cumulative = 0.0, -values["startup"]
     revenues, nets, counts, cumul = [], [], [], []
     cap_month = None
@@ -68,6 +70,8 @@ def scalability(model_results: dict[str, ScenarioResult], revenue_model: str) ->
     r = model_results["realistisch"]
     if r.gross_margin_pct < 50:
         return "laag", f"Brutomarge van {r.gross_margin_pct:.0f}% laat weinig ruimte om te groeien."
+    if revenue_model == "dienst":
+        return "laag", "Dienst geleverd door de oprichter: groei is begrensd door de eigen uren."
     if r.market_cap_reached_month and r.market_cap_reached_month <= 24:
         return "laag", f"Het bereikbare marktplafond wordt al in maand {r.market_cap_reached_month} geraakt."
     if revenue_model == "eenmalig":
@@ -78,9 +82,9 @@ def scalability(model_results: dict[str, ScenarioResult], revenue_model: str) ->
     return "gemiddeld", f"Brutomarge {r.gross_margin_pct:.0f}%, LTV/CAC {r.ltv_cac:.1f}."
 
 
-def build_financial_model(idea: Idea, evidence: list[Evidence],
-                          marketing_per_month: float = 750) -> FinancialModel:
-    rm, assumptions, notes = build_assumptions(idea, evidence, marketing_per_month)
+def build_financial_model(idea: Idea, evidence: list[Evidence], marketing_per_month: float = 750,
+                          founder=None) -> FinancialModel:
+    rm, assumptions, notes = build_assumptions(idea, evidence, marketing_per_month, founder)
     results = {}
     for sc in SCENARIOS:
         values = {a.key: a.for_scenario(sc) for a in assumptions}

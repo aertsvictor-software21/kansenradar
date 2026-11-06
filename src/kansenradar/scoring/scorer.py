@@ -76,7 +76,7 @@ def _sub(name: str, fraction: float, rationale: str, cap: tuple[float, str] | No
     return SubScore(criterion=name, points=points, max_points=mx, rationale=rationale, capped_by=capped_by)
 
 
-def score_idea(idea: Idea, evidence: list[Evidence], max_age_days: int = 365) -> Scorecard:
+def score_idea(idea: Idea, evidence: list[Evidence], max_age_days: int = 365, founder=None) -> Scorecard:
     scr, fin, comp, rev, res = idea.screening, idea.finance, idea.competition, idea.review, idea.research
     facts = _facts(evidence, max_age_days)
     has = lambda *topics: any(facts.get(t.value) for t in topics)  # noqa: E731
@@ -138,9 +138,16 @@ def score_idea(idea: Idea, evidence: list[Evidence], max_age_days: int = 365) ->
 
     # 6. Benodigd startkapitaal (10): less capital needed = more points
     need = fin.scenarios["realistisch"].capital_needed if fin else 20_000
-    frac = 1.0 if need <= 5_000 else 0.8 if need <= 15_000 else 0.6 if need <= 40_000 else 0.4 if need <= 100_000 else 0.2
-    subs.append(_sub("Benodigd startkapitaal", frac,
-                     f"Benodigd kapitaal realistisch € {need:,.0f} (incl. aanloopverliezen).".replace(",", ".")))
+    need_txt = f"{need:,.0f}".replace(",", ".")
+    if founder is not None:
+        # Judged against what the founder actually has.
+        frac = 1.0 if need <= founder.capital_eur else max(0.0, founder.capital_eur / need)
+        rationale = (f"Benodigd kapitaal realistisch € {need_txt}; jouw budget € {founder.capital_eur:g}"
+                     + (" — haalbaar." if need <= founder.capital_eur else " — onvoldoende."))
+    else:
+        frac = 1.0 if need <= 5_000 else 0.8 if need <= 15_000 else 0.6 if need <= 40_000 else 0.4 if need <= 100_000 else 0.2
+        rationale = f"Benodigd kapitaal realistisch € {need_txt} (incl. aanloopverliezen)."
+    subs.append(_sub("Benodigd startkapitaal", frac, rationale))
 
     # 7. Uitvoerbaarheid (10)
     subs.append(_sub("Uitvoerbaarheid", (s(Criterion.FEASIBILITY) - 1) / 4,

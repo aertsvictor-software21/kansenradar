@@ -35,7 +35,8 @@ B2B_TARGETS = (
     "kantor", "praktijk", "aannemer", "installateur", "bedrijv", "zaken", "groothandel", "webshop",
     "producent", "bakkerij", "advoca", "syndic", "beheerder", "verhuurder", "werkgever", "kmo",
     "technici", "verpleegkundig", "therapeut", "kinesi", "landbouw", "tuinbouw", "horeca",
-    "boekhoud", "artsen", "vervoerder", "handel", "starters in een vrij beroep",
+    "boekhoud", "artsen", "vervoerder", "handel", "starters in een vrij beroep", "vakmens", "kapper",
+    "garage", "restaurant", "cafe", "renovatie", "loodgieter", "schilder", "elektricien",
 )
 REVENUE_WORDS = ("abonnement", "prijs", "commissie", "licentie", "per ", "betaal", "fee", "verkoop",
                  "aankoop", "huur", "marge op")
@@ -44,6 +45,12 @@ MARKETPLACE_WORDS = ("commissie", "marktplaats", "koppelt", "koppelen", "platfor
 
 def _has(text: str, words) -> list[str]:
     return [w for w in words if w in text]
+
+
+def _has_word_start(text: str, words) -> list[str]:
+    """Match only at the start of a word: 'lening' must not match 'dienstverlening'."""
+    import re
+    return [w for w in words if re.search(r"(?<![a-z0-9])" + re.escape(w), text)]
 
 
 def screen_by_rules(c: IdeaCandidate) -> ScreeningResult:
@@ -99,13 +106,13 @@ def screen_by_rules(c: IdeaCandidate) -> ScreeningResult:
     competition = CriterionScore(criterion=Criterion.COMPETITION, score=3, known=False,
                                  motivation="Concurrentie onbekend zonder onderzoek.")
 
-    regulated = _has(whole, REGULATED)
-    hardware = _has(whole, HARDWARE)
+    regulated = _has_word_start(whole, REGULATED)
+    hardware = _has_word_start(whole, HARDWARE)
     if regulated:
         feas = CriterionScore(criterion=Criterion.FEASIBILITY, score=2, known=True,
                               motivation=f"Mogelijk vergunning of toezicht nodig ({', '.join(regulated[:3])}).")
         questions.append("Welke vergunningen, certificeringen of toezichthouders zijn van toepassing?")
-    elif _has(whole, SENSITIVE_DATA):
+    elif _has_word_start(whole, SENSITIVE_DATA):
         feas = CriterionScore(criterion=Criterion.FEASIBILITY, score=3, known=True,
                               motivation="Verwerkt waarschijnlijk gezondheidsgegevens: strengere AVG-eisen "
                                          "en mogelijk koppelingen met zorgsystemen.")

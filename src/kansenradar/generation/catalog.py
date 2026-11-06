@@ -153,8 +153,34 @@ TECH_LENSES: tuple[TechLens, ...] = (
     TechLens("planning", "automatische planning en optimalisatie", "plant en optimaliseert automatisch"),
     TechLens("agent", "AI-agent die formulieren en portalen invult", "handelt via een AI-agent automatisch af:"),
     TechLens("voorspelling", "voorspellende modellen op eigen data", "voorspelt op basis van eigen gegevens"),
+    TechLens("dienst", "gestandaardiseerde dienst met gratis AI-tools", "neemt volledig uit handen:"),
     TechLens("peppol", "gestructureerde e-facturatie (Peppol)", "koppelt e-facturen automatisch aan"),
 )
+
+# Productized services: sell before you build; suitable for a founder with almost no capital.
+SERVICE_SEEDS: tuple[ProblemSeed, ...] = (
+    ProblemSeed("dienst-reviews", S.PROFESSIONAL_SERVICES, "lokale handelaars (kappers, garages, restaurants)",
+                "Lokale handelaars verliezen klanten omdat hun Google-bedrijfsprofiel verouderd is en reviews onbeantwoord blijven.",
+                "maandelijkse dienstverlening per zaak", deliverable="hun Google-bedrijfsprofiel en reviews",
+                tech_fit=("dienst",)),
+    ProblemSeed("dienst-offerteopvolging", S.PROFESSIONAL_SERVICES, "installateurs en aannemers met 1-10 werknemers",
+                "Kleine installateurs verliezen opdrachten omdat offertes niet opgevolgd en aanvragen te laat beantwoord worden.",
+                "maandelijkse dienstverlening per bedrijf", deliverable="de opvolging van offertes en klantaanvragen",
+                tech_fit=("dienst",)),
+    ProblemSeed("dienst-bonnetjes", S.PROFESSIONAL_SERVICES, "zelfstandige vakmensen (loodgieters, schilders, elektriciens)",
+                "Zelfstandige vakmensen verliezen avonden aan bonnetjes, facturen en het doorsturen van documenten naar hun boekhouder.",
+                "maandelijkse dienstverlening per zelfstandige",
+                deliverable="het verzamelen en klaarzetten van bonnetjes en facturen", tech_fit=("dienst",)),
+    ProblemSeed("dienst-horeca-berichten", S.PROFESSIONAL_SERVICES, "kleine restaurants en cafés",
+                "Kleine restaurants missen reservaties en omzet omdat niemand tijd heeft om berichten, reviews en sociale media op te volgen.",
+                "maandelijkse dienstverlening per zaak", deliverable="berichten, reservaties en sociale media",
+                tech_fit=("dienst",)),
+    ProblemSeed("dienst-premies", S.PROFESSIONAL_SERVICES, "kleine renovatiebedrijven",
+                "Renovatiebedrijven verliezen opdrachten omdat klanten verdwalen in premieaanvragen en hun werken uitstellen.",
+                "vaste dienstverlening per dossier", deliverable="de premieaanvragen voor hun klanten",
+                tech_fit=("dienst",)),
+)
+PROBLEM_SEEDS = PROBLEM_SEEDS + SERVICE_SEEDS
 
 INTERNATIONAL_PATTERNS: tuple[InternationalPattern, ...] = (
     InternationalPattern("verticale-saas-ambacht", "Verenigde Staten",

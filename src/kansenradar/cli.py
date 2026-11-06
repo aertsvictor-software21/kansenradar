@@ -15,7 +15,7 @@ import argparse
 import logging
 import sys
 
-from kansenradar.config import get_settings
+from kansenradar.config import founder_from, get_settings
 from kansenradar.domain import IdeaStatus, OriginalityStrategy, Sector
 from kansenradar.generation import run_generation
 from kansenradar.history import get_embedder
@@ -61,7 +61,7 @@ def cmd_genereer(args, settings) -> int:
     report = run_generation(
         _repo(settings), embedder, llm, count=args.aantal, per_seed=args.per_invalshoek,
         sectors=args.sector or None, strategies=args.strategie or None, rng_seed=args.seed,
-        budget=budget,
+        budget=budget, founder=founder_from(settings),
     )
     print(report.summary())
     print()
@@ -186,7 +186,8 @@ def print_finance(idea) -> None:
 
 
 def cmd_financieel(args, settings) -> int:
-    ideas = analyse_finance(_repo(settings), [args.idee] if args.idee else None, args.marketing)
+    ideas = analyse_finance(_repo(settings), [args.idee] if args.idee else None, args.marketing,
+                            founder_from(settings))
     if not ideas:
         print("Geen onderzochte ideeën zonder financiële analyse. Voer eerst 'onderzoek' uit.")
     for idea in ideas:
@@ -236,7 +237,8 @@ def print_scorecard(idea) -> None:
 
 
 def cmd_score(args, settings) -> int:
-    ranked = score_ideas(_repo(settings), [args.idee] if args.idee else None, settings.evidence_max_age_days)
+    ranked = score_ideas(_repo(settings), [args.idee] if args.idee else None, settings.evidence_max_age_days,
+                         founder_from(settings))
     if not ranked:
         print("Geen onderzochte ideeën om te scoren. Voer eerst 'onderzoek' uit.")
     for idea in ranked:
@@ -267,17 +269,20 @@ def cmd_run(args, settings) -> int:
     llm = None if args.zonder_llm else build_llm_client(settings, budget)
     repo = _repo(settings)
     embedder = get_embedder(settings.embedder)
+    founder = founder_from(settings)
+    if founder:
+        print(f"Oprichtersprofiel: € {founder.capital_eur:g} startkapitaal, {founder.hours_per_week:g} uur/week")
     print(f"Modus: {'LLM via ' + settings.llm_provider if llm else 'zonder LLM'} | zoeken: "
           f"{build_search(settings).name} | open data: {'aan' if settings.use_open_data else 'uit'}")
     steps = [
         ("1/8 Genereren", lambda: run_generation(repo, embedder, llm, count=args.aantal, rng_seed=args.seed,
-                                                 budget=budget).summary()),
+                                                 budget=budget, founder=founder).summary()),
         ("2/8 Screenen", lambda: screen_ideas(repo, llm).summary()),
         ("3/8 Marktonderzoek", lambda: research_ideas(repo, build_researcher(settings, llm), top_n=args.top).summary()),
         ("4/8 Concurrentie", lambda: f"{len(analyse_competition(repo, CompetitorAnalyzer(search=build_search(settings), llm=llm)))} idee(ën)"),
-        ("5/8 Financieel", lambda: f"{len(analyse_finance(repo))} idee(ën)"),
+        ("5/8 Financieel", lambda: f"{len(analyse_finance(repo, founder=founder))} idee(ën)"),
         ("6/8 Kritische investeerder", lambda: f"{len(review_ideas(repo, llm))} idee(ën)"),
-        ("7/8 Scoren", lambda: f"{len(score_ideas(repo, max_age_days=settings.evidence_max_age_days))} idee(ën) gescoord"),
+        ("7/8 Scoren", lambda: f"{len(score_ideas(repo, max_age_days=settings.evidence_max_age_days, founder=founder))} idee(ën) gescoord"),
         ("8/8 Rapport", lambda: str(write_reports(repo, args.map).resolve())),
     ]
     for label, step in steps:
@@ -322,9 +327,10 @@ def cmd_heranalyseer(args, settings) -> int:
     print(f"\nOpnieuw analyseren ({'LLM via ' + settings.llm_provider if llm else 'zonder LLM'})...")
     print(research_ideas(repo, build_researcher(settings, llm), idea_ids=ids).summary())
     analyse_competition(repo, CompetitorAnalyzer(search=build_search(settings), llm=llm), ids)
-    analyse_finance(repo, ids)
+    founder = founder_from(settings)
+    analyse_finance(repo, ids, founder=founder)
     review_ideas(repo, llm, ids)
-    score_ideas(repo, ids, settings.evidence_max_age_days)
+    score_ideas(repo, ids, settings.evidence_max_age_days, founder)
     print(f"Rapport: {write_reports(repo, args.map).resolve()}\n\nRangschikking:")
     cmd_ranking(args, settings)
     if llm:
@@ -398,6 +404,8 @@ def cmd_status(args, settings) -> int:
     print(f"Embedder:      {embedder.name}")
     print(f"Webzoeken:     {build_search(settings).name}")
     print(f"Open data:     {'Eurostat' if settings.use_open_data else 'uit'}")
+    f = founder_from(settings)
+    print(f"Oprichter:     " + (f"€ {f.capital_eur:g} startkapitaal, {f.hours_per_week:g} uur/week" if f else "niet ingesteld"))
     return 0
 
 

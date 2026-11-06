@@ -59,11 +59,18 @@ def run_generation(
     strategies: list[OriginalityStrategy] | None = None,
     rng_seed: int = 0,
     budget: RunBudget | None = None,
+    founder=None,
 ) -> GenerationReport:
     engine = OriginalityEngine()
-    seeds = engine.seeds(
-        count, sectors=sectors, strategies=strategies, exclude_keys=repo.used_seed_keys(),
-        rng_seed=rng_seed, template_only=llm is None,
+    used = repo.used_seed_keys()
+    seeds = []
+    if founder is not None and founder.bootstrapped:
+        # Services first: they fit a founder with almost no capital.
+        seeds = [sd for sd in engine.catalog
+                 if sd.tech is not None and sd.tech.key == "dienst" and sd.key not in used][: max(1, count // 2)]
+    seeds += engine.seeds(
+        count - len(seeds), sectors=sectors, strategies=strategies,
+        exclude_keys=used | {sd.key for sd in seeds}, rng_seed=rng_seed, template_only=llm is None,
     )
     run_id = repo.start_run(
         max_cost_usd=budget.max_usd if budget else 0.0,
@@ -77,7 +84,7 @@ def run_generation(
 
     status = "klaar"
     try:
-        for gen in IdeaGenerator(llm).generate(seeds, per_seed=per_seed):
+        for gen in IdeaGenerator(llm, founder).generate(seeds, per_seed=per_seed):
             quality = check_quality(gen.candidate)
             idea, check = checker.register(gen.candidate, run_id=run_id)
             idea.quality_flags = quality.flags

@@ -23,6 +23,9 @@ DEFAULTS = {
                            margin=(70, 80, 88), organic=(5, 10, 20)),
     "transactie": dict(price=(15, 30, 60), cac=(50, 90, 150), churn=(4, 6, 10),
                        margin=(80, 88, 93), organic=(2, 4, 8)),
+    # Productized service delivered by the founder: little cost, capacity-limited by hours.
+    "dienst": dict(price=(150, 250, 400), cac=(25, 50, 100), churn=(3, 5, 8),
+                   margin=(80, 88, 95), organic=(0.5, 1, 2)),
     "eenmalig": dict(price=(30, 60, 120), cac=(15, 25, 45), churn=(100, 100, 100),
                      margin=(60, 75, 85), organic=(5, 10, 20)),
 }
@@ -32,6 +35,8 @@ B2C_WORDS = ("ouders", "consument", "gezinnen", "particulier", "mantelzorger", "
 
 def revenue_model(idea: Idea) -> str:
     model = normalize(idea.business_model)
+    if any(w in model for w in ("dienst", "uurtarief", "per project", "retainer", "beheer per")):
+        return "dienst"
     if any(w in model for w in ("commissie", "per transactie", "per rit", "per lening")):
         return "transactie"
     if any(w in model for w in ("eenmalig", "aankoop", "per rapport", "betaald rapport")):
@@ -54,9 +59,11 @@ def _market_facts(evidence: list[Evidence]) -> int | None:
     return total or None
 
 
-def build_assumptions(idea: Idea, evidence: list[Evidence],
-                      marketing_per_month: float = 750) -> tuple[str, list[Assumption], list[str]]:
+def build_assumptions(idea: Idea, evidence: list[Evidence], marketing_per_month: float = 750,
+                      founder=None) -> tuple[str, list[Assumption], list[str]]:
     rm = revenue_model(idea)
+    if founder is not None and founder.bootstrapped:
+        marketing_per_month = 0  # no advertising budget: growth only through own outreach
     d = DEFAULTS[rm]
     notes: list[str] = []
     out: list[Assumption] = []
@@ -103,19 +110,37 @@ def build_assumptions(idea: Idea, evidence: list[Evidence],
                                                             if rm == "eenmalig" else "")),
         Assumption(key="margin", label="Brutomarge", low=d["margin"][0], mid=d["margin"][1], high=d["margin"][2],
                    unit="%", basis=H, source="Vuistregel: hosting, betaalkosten, support, AI-gebruik."),
-        Assumption(key="organic", label="Organische nieuwe klanten per maand", low=d["organic"][0],
+        Assumption(key="organic", label=("Nieuwe klanten per maand via eigen prospectie" if rm == "dienst"
+                                          else "Organische nieuwe klanten per maand"), low=d["organic"][0],
                    mid=d["organic"][1], high=d["organic"][2], unit="klanten/maand", basis=H,
                    source="Mond-tot-mond en zoekverkeer; vuistregel."),
         Assumption(key="marketing", label="Marketingbudget per maand", low=marketing_per_month,
                    mid=marketing_per_month, high=marketing_per_month, unit="EUR/maand", basis=H,
                    source="Beleidskeuze (instelbaar), geen onzekerheid."),
-        Assumption(key="fixed", label="Vaste kosten per maand (excl. vergoeding oprichter)", low=150, mid=250,
-                   high=450, unit="EUR/maand", basis=H, higher_is_better=False,
-                   source="Tools, hosting, boekhouder, verzekering voor een kleine digitale starter."),
+        Assumption(key="fixed", label="Vaste kosten per maand (excl. vergoeding oprichter)",
+                   low=10 if rm == "dienst" else 150, mid=30 if rm == "dienst" else 250,
+                   high=60 if rm == "dienst" else 450, unit="EUR/maand", basis=H, higher_is_better=False,
+                   source=("Domeinnaam, telefoon, gratis tools; boekhouding zelf of via goedkoop pakket."
+                           if rm == "dienst" else
+                           "Tools, hosting, boekhouder, verzekering voor een kleine digitale starter.")),
     ]
+    if rm == "dienst":
+        hours = founder.hours_per_week if founder else 20
+        out.append(Assumption(
+            key="capacity", label="Maximaal aantal klanten (capaciteit oprichter)", low=round(hours / 4),
+            mid=round(hours / 3), high=round(hours / 2), unit="klanten", basis=H,
+            source=f"{hours:g} uur per week, 2 tot 4 uur per klant per week."))
+        notes.append("Een dienst groeit niet verder dan je eigen uren; daarna moet je automatiseren of personeel nemen.")
+    if founder is not None and founder.bootstrapped:
+        notes.append(f"Met € {founder.capital_eur:g} startkapitaal is er geen advertentiebudget: "
+                     "klanten komen alleen via eigen prospectie en mond-tot-mond.")
 
-    capital = [800, 2_000, 5_000]
-    reason = "MVP gebouwd door oprichter(s); kosten voor juridisch, merk, tools en buffer."
+    if rm == "dienst":
+        capital = [15, 30, 60]
+        reason = "Domeinnaam, visitekaartjes en gratis tools; niets te bouwen vooraf."
+    else:
+        capital = [800, 2_000, 5_000]
+        reason = "MVP gebouwd door oprichter(s); kosten voor juridisch, merk, tools en buffer."
     if idea.screening and idea.screening.score_of(Criterion.FEASIBILITY) <= 2:
         capital = [c + 10_000 for c in capital]
         reason += " +10.000 voor vergunning/certificering/juridisch advies (regelgeving)."

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,11 +37,32 @@ class Settings(BaseSettings):
     # (see history/embeddings.py) because their similarity scales differ.
     embedder: str = "auto"
 
+    # Founder profile (optional). Capital in EUR the founder can invest; hours per week available.
+    founder_capital_eur: float | None = None
+    founder_hours_per_week: float = 20
+
     # Web search for market research: none | searxng | tavily (free tier, TAVILY_API_KEY).
     search_provider: str = "none"
     searxng_url: str = "http://localhost:8888"
     # Official open data (Eurostat, free, no key). Off = fully offline.
     use_open_data: bool = True
+
+
+@dataclass(frozen=True)
+class FounderProfile:
+    capital_eur: float
+    hours_per_week: float = 20
+
+    @property
+    def bootstrapped(self) -> bool:
+        """Too little capital for an advertising budget or paid development."""
+        return self.capital_eur < 1_000
+
+
+def founder_from(settings: Settings) -> FounderProfile | None:
+    if settings.founder_capital_eur is None:
+        return None
+    return FounderProfile(settings.founder_capital_eur, settings.founder_hours_per_week)
 
 
 def load_env_file(path: str = ".env") -> None:

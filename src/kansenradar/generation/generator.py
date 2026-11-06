@@ -61,7 +61,9 @@ def _template_candidate(seed: Seed) -> IdeaCandidate:
     title = f"{tech.capability[:1].upper()}{tech.capability[1:]} voor {ps.target_customer}"
     return IdeaCandidate(
         title=title[:120],
-        one_liner=f"Tool voor {ps.target_customer} die {tech.solution_pattern} {ps.deliverable}."[:300],
+        one_liner=(f"Maandelijkse dienst voor {ps.target_customer} die {ps.deliverable} volledig uit handen neemt, "
+                   "met gratis AI-tools." if tech.key == "dienst"
+                   else f"Tool voor {ps.target_customer} die {tech.solution_pattern} {ps.deliverable}.")[:300],
         problem=ps.problem,
         target_customer=ps.target_customer,
         sector=ps.sector,
@@ -74,9 +76,24 @@ def _template_candidate(seed: Seed) -> IdeaCandidate:
     )
 
 
+def founder_instructions(founder) -> str:
+    if founder is None:
+        return ""
+    extra = (f"\n\nRandvoorwaarden van de oprichter: startkapitaal maximaal € {founder.capital_eur:g}, "
+             f"{founder.hours_per_week:g} uur per week.")
+    if founder.bootstrapped:
+        extra += (" De oprichter is beginner en heeft geen budget voor advertenties of softwareontwikkeling. "
+                  "Zoek ideeën die binnen 30 dagen eerste omzet kunnen opleveren: geen vergunning, geen voorraad, "
+                  "geen personeel, niets bouwen vooraf. Een dienst die eerst manueel (met gratis tools en AI) "
+                  "geleverd wordt en per maand gefactureerd wordt, is ideaal. Vermeld het woord 'dienstverlening' "
+                  "in het verdienmodel als het om een dienst gaat.")
+    return extra
+
+
 class IdeaGenerator:
-    def __init__(self, llm=None) -> None:
+    def __init__(self, llm=None, founder=None) -> None:
         self.llm = llm
+        self.founder = founder
 
     def generate(self, seeds: list[Seed], per_seed: int = 2) -> list[GeneratedCandidate]:
         out: list[GeneratedCandidate] = []
@@ -100,7 +117,7 @@ class IdeaGenerator:
         )
         batch = self.llm.structured(
             task="generate_ideas", tier=Tier.ANALYSIS, prompt=prompt, schema=_LLMIdeaBatch,
-            system_extra=GENERATION_INSTRUCTIONS, max_tokens=4_000,
+            system_extra=GENERATION_INSTRUCTIONS + founder_instructions(self.founder), max_tokens=4_000,
         )
         results = []
         for item in batch.ideas[:per_seed]:

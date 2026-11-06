@@ -215,3 +215,10 @@ def test_rules_medical_diagnostics_is_regulated():
                              target_customer="radiologiepraktijken"))
     from kansenradar.domain import Criterion
     assert r.score_of(Criterion.FEASIBILITY) == 2
+
+
+def test_dienstverlening_is_not_a_loan():
+    r = screen_by_rules(idea(business_model="maandelijkse dienstverlening per zaak"))
+    from kansenradar.domain import Criterion
+    assert r.score_of(Criterion.FEASIBILITY) == 4
+    assert screen_by_rules(idea(one_liner="App die kleine leningen aan aannemers verstrekt.")).score_of(Criterion.FEASIBILITY) == 2
