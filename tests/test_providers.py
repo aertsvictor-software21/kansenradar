@@ -60,7 +60,8 @@ def test_successful_call_is_free_and_sends_schema():
     assert call(client).keep is True
     assert client.budget.spent_usd == 0.0
     body = seen[0]
-    assert body["model"] == "llama-3.1-8b-instant"
+    assert body["model"] == "openai/gpt-oss-20b"
+    assert body["reasoning_effort"] == "low" and body["max_tokens"] >= 8000
     assert body["response_format"] == {"type": "json_object"}
     assert '"reason"' in body["messages"][0]["content"]  # schema in system message
 
@@ -120,7 +121,7 @@ def test_factory_builds_free_client_with_overrides(monkeypatch):
                               RunBudget())
     assert client.free is True
     assert client.model_for(Tier.ANALYSIS) == "ander-model"
-    assert client.model_for(Tier.SCREENING) == "llama-3.1-8b-instant"
+    assert client.model_for(Tier.SCREENING) == "openai/gpt-oss-20b"
 
 
 def test_ollama_needs_no_key():

@@ -26,6 +26,13 @@ log = logging.getLogger(__name__)
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 
 
+MIN_REASONING_TOKENS = 8_000
+
+
+def _is_reasoning(model: str) -> bool:
+    return "gpt-oss" in model
+
+
 class ProviderError(ConnectionError):
     """Provider unreachable or keeps failing; callers fall back to non-LLM paths."""
 
@@ -108,10 +115,15 @@ class OpenAICompatBackend:
         parsed = None
         stop_reason = None
         for attempt in range(2):  # first try + one repair
-            data = self._post({
-                "model": model, "messages": messages, "max_tokens": max_tokens,
+            body = {
+                "model": model, "messages": messages,
+                # Reasoning models spend tokens on thinking first; keep enough room for the answer.
+                "max_tokens": max(max_tokens, MIN_REASONING_TOKENS) if _is_reasoning(model) else max_tokens,
                 "response_format": {"type": "json_object"},
-            })
+            }
+            if _is_reasoning(model):
+                body["reasoning_effort"] = {"low": "low", "medium": "medium"}.get(effort, "high")
+            data = self._post(body)
             u = data.get("usage") or {}
             usage.input_tokens += u.get("prompt_tokens", 0)
             usage.output_tokens += u.get("completion_tokens", 0)

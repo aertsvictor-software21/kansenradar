@@ -42,8 +42,9 @@ class ProviderPreset:
 PRESETS: dict[str, ProviderPreset] = {
     "groq": ProviderPreset(
         name="groq", base_url="https://api.groq.com/openai/v1", api_key_env="GROQ_API_KEY",
-        models={"analysis": "llama-3.3-70b-versatile", "extraction": "llama-3.3-70b-versatile",
-                "screening": "llama-3.1-8b-instant"},
+        # Llama 3.x models were shut down for free tiers on 2026-08-16; Groq's replacements:
+        models={"analysis": "openai/gpt-oss-120b", "extraction": "openai/gpt-oss-120b",
+                "screening": "openai/gpt-oss-20b"},
         free=True, min_interval_s=2.5,
     ),
     "gemini": ProviderPreset(
