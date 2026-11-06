@@ -116,7 +116,8 @@ def test_llm_red_team_fills_unknowns_adds_risks_but_never_fatal():
     r = review_idea(i, llm)
     assert r.reviewed_by == "regels + llm"
     assert r.check(Q.WILL_PAY).verdict == "nee" and r.check(Q.WILL_PAY).source == "llm"
-    assert r.check(Q.SATURATED).verdict == "nee"  # data-based rule verdict kept
+    # web search found little competition, but the model points at free/big-tech alternatives
+    assert r.check(Q.SATURATED).verdict == "ja" and r.check(Q.SATURATED).source == "llm"
     assert r.check(Q.COPYABLE).verdict == "ja"   # model's 'onbekend' does not erase a rule answer
     bundling = next(x for x in r.risks if x.title.startswith("Bundeling"))
     assert bundling.basis is EvidenceType.HYPOTHESIS and not bundling.fatal

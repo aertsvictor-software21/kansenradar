@@ -39,12 +39,32 @@ def _clamp(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, x))
 
 
+# Desk research alone never justifies high confidence; only real customer validation does.
+DESK_RESEARCH_CONFIDENCE_CAP = 60.0
+VALIDATION_TOPIC = "klantvalidatie"
+
+
+def _domain(url: str | None) -> str:
+    from urllib.parse import urlsplit
+    host = urlsplit(url or "").netloc.lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def _corroborated(facts: list[Evidence]) -> bool:
+    """A topic counts as supported with facts from >= 2 different websites, or from an
+    official or industry source. One blog post alone is not enough."""
+    domains = {_domain(f.source_url) for f in facts}
+    return len(domains) >= 2 or any(
+        f.source_quality in (SourceQuality.OFFICIAL, SourceQuality.INDUSTRY) for f in facts)
+
+
 def _facts(evidence: list[Evidence], max_age: int) -> dict[str, list[Evidence]]:
+    """Facts per topic, keeping only topics whose facts are corroborated."""
     out: dict[str, list[Evidence]] = {}
     for ev in evidence:
         if ev.effective_type(max_age) is EvidenceType.FACT:
             out.setdefault(ev.topic, []).append(ev)
-    return out
+    return {t: f for t, f in out.items() if _corroborated(f) or t == VALIDATION_TOPIC}
 
 
 def _sub(name: str, fraction: float, rationale: str, cap: tuple[float, str] | None = None) -> SubScore:
@@ -143,9 +163,10 @@ def score_idea(idea: Idea, evidence: list[Evidence], max_age_days: int = 365) ->
 def _confidence(idea: Idea, evidence, facts, max_age) -> tuple[float, list[str]]:
     res, comp, rev = idea.research, idea.competition, idea.review
     reasons = []
-    n_topics = res.topics_with_facts if res else 0
+    n_topics = sum(1 for t in ResearchTopic if facts.get(t.value))
     coverage = 50 * n_topics / 10
-    reasons.append(f"{n_topics}/10 onderzoeksonderwerpen met een geverifieerd feit (+{coverage:.0f}).")
+    reasons.append(f"{n_topics}/10 onderzoeksonderwerpen met bevestigd bewijs (≥ 2 websites of een "
+                   f"officiële/sectorbron) (+{coverage:.0f}).")
     key = [(T.DEMAND, T.PROBLEM), (T.MARKET_SIZE, T.CUSTOMERS), (T.PRICING,), (T.COMPETITORS,)]
     key_hits = sum(any(facts.get(t.value) for t in group) for group in key)
     reasons.append(f"{key_hits}/4 kernonderwerpen (vraag, markt, prijs, concurrentie) onderbouwd (+{7.5 * key_hits:.0f}).")
@@ -155,7 +176,12 @@ def _confidence(idea: Idea, evidence, facts, max_age) -> tuple[float, list[str]]
     reasons.append(f"{strong}/{len(all_facts)} feiten uit sterke bronnen (officieel, sector, media) (+{quality:.0f}).")
     completeness = (5 if comp and comp.saturation != "onbekend" else 0) + (5 if rev else 0)
     reasons.append(f"Volledigheid analyse (+{completeness}).")
-    return round(min(100.0, coverage + 7.5 * key_hits + quality + completeness), 1), reasons
+    total = min(100.0, coverage + 7.5 * key_hits + quality + completeness)
+    if not facts.get(VALIDATION_TOPIC) and total > DESK_RESEARCH_CONFIDENCE_CAP:
+        total = DESK_RESEARCH_CONFIDENCE_CAP
+        reasons.append(f"Zonder klantvalidatie maximaal {DESK_RESEARCH_CONFIDENCE_CAP:.0f}% "
+                       "(enkel bureauonderzoek).")
+    return round(total, 1), reasons
 
 
 def _conclusion(idea: Idea, total: float, confidence: float) -> tuple[Conclusion, str]:

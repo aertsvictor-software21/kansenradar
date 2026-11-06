@@ -157,6 +157,15 @@ class Repository:
                     data=ev.model_dump(mode="json"),
                 ))
 
+    def delete_evidence(self, idea_id: str, keep_topic_prefix: str = "screening:") -> int:
+        """Remove an idea's evidence, except topics starting with keep_topic_prefix."""
+        with self.session() as s, s.begin():
+            rows = s.scalars(select(EvidenceRow).where(EvidenceRow.idea_id == idea_id)).all()
+            doomed = [r for r in rows if not r.topic.startswith(keep_topic_prefix)]
+            for r in doomed:
+                s.delete(r)
+            return len(doomed)
+
     def evidence_for(self, idea_id: str) -> list[Evidence]:
         with self.session() as s:
             rows = s.scalars(select(EvidenceRow).where(EvidenceRow.idea_id == idea_id)).all()

@@ -10,6 +10,7 @@ no information is not evidence of an empty market.
 from __future__ import annotations
 
 import logging
+import re
 import statistics
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -47,6 +48,13 @@ NOT_COMPETITORS = (
     "reddit.", "capterra.", "g2.com", "trustpilot.", "getapp.", "softwareadvice.", "medium.com",
     "google.", "apple.com", "play.google", "amazon.", "bol.com", "indeed.", "glassdoor.",
 )
+# Pages that are articles about a market, not a competitor's own offering.
+ARTICLE_URL = re.compile(r"/(blog|blogs|nieuws|news|artikel|artikelen|article|articles|actueel|kennis|"
+                         r"insights|report|rapport|trends|magazine|whitepaper|vacature|events?)(/|$)|/20\d\d/", re.I)
+ARTICLE_TITLE = re.compile(r"\b20\d\d\b|\?|\bbeste\b|\btop ?\d|\boverzicht\b|\btrends?\b|"
+                           r"\bgroeikansen\b|\bvoorspelling|\breport\b|\brapport\b|\bhoe\b|\bwaarom\b|"
+                           r"\btips\b|\bgids\b|\bvergelijking\b", re.I)
+GENERIC_TITLES = {"title", "home", "homepage", "welkom", "index"}
 PRICE_PATHS = ("/prijzen", "/pricing", "/tarieven", "/prijs")
 MAX_CANDIDATES = 8
 MIN_OVERLAP = 2
@@ -59,7 +67,7 @@ def _domain(url: str) -> str:
 
 def _is_candidate(url: str) -> bool:
     d = _domain(url)
-    if not d or any(x in d for x in NOT_COMPETITORS):
+    if not d or any(x in d for x in NOT_COMPETITORS) or ARTICLE_URL.search(urlsplit(url).path):
         return False
     return classify_source(url) is SourceQuality.COMPANY
 
@@ -129,6 +137,9 @@ class CompetitorAnalyzer:
         except FetchSkipped as exc:
             log.info("Kandidaat overgeslagen %s: %s", url, exc)
             return None
+        if ARTICLE_URL.search(urlsplit(page.url).path) or ARTICLE_TITLE.search(page.title or ""):
+            log.info("Geen concurrent (artikel of overzicht): %s", page.url)
+            return None
         parts = urlsplit(page.url)
         prices = extract_prices(page.text, page.url)
         if not prices:
@@ -142,7 +153,12 @@ class CompetitorAnalyzer:
                     break
         overlap = len(set(tokens(f"{key_terms(idea, 5)} {idea.target_customer}"))
                       & set(tokens(page.title + " " + page.text[:5000])))
-        name = (page.title.split("|")[0].split(" - ")[0].strip() or _domain(page.url))[:80]
+        name = page.title.split("|")[0].split(" - ")[0].strip()
+        if not name or name.lower() in GENERIC_TITLES:
+            name = _domain(page.url)
+        name = name[:80]
+        # Only prices with a clear period are evidence; loose amounts are often examples.
+        prices = [p for p in prices if p.period in ("maand", "jaar")]
         first_sentence = next((s.strip() for s in page.text.split("\n") if 40 <= len(s.strip()) <= 300), "")
         comp = Competitor(
             name=name, domain=_domain(page.url), url=page.url,

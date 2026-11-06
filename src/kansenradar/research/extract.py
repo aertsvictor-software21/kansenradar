@@ -36,6 +36,7 @@ class ExtractionResult:
 def classify_source(url: str) -> SourceQuality:
     host = re.sub(r"^www\.", "", url.split("/")[2].lower()) if "//" in url else ""
     if host.endswith((".gov", ".europa.eu", "fgov.be", "vlaanderen.be", "overheid.nl", "cbs.nl",
+                      "wodc.nl", "rechtspraak.nl", "advocatenorde.nl", "ordevanvlaamsebalies.be", "nbb.be",
                       "rijksoverheid.nl", "kvk.nl", "statbel.be", "belgium.be", "wallonie.be", "brussels")):
         return SourceQuality.OFFICIAL
     if any(k in host for k in ("reddit.", "forum", "trustpilot", "facebook.", "quora.")):
@@ -68,10 +69,14 @@ class RuleExtractor:
         scored = []
         for sentence in _SENTENCE.split(page.text[:MAX_PAGE_CHARS * 3]):
             sentence = sentence.strip()
-            if not 40 <= len(sentence) <= 400:
+            if not 60 <= len(sentence) <= 400:
+                continue
+            # Headings, questions and fragments are not evidence: require a complete statement.
+            if not sentence.endswith((".", "!")) or sentence.endswith("?"):
                 continue
             overlap = len(q_tokens & set(tokens(sentence)))
-            if overlap < 2:
+            has_number = bool(re.search(r"\d", sentence))
+            if overlap < 2 or (not has_number and overlap < 3):
                 continue
             scored.append((overlap + (1.5 if re.search(r"\d", sentence) else 0), sentence))
         scored.sort(key=lambda t: t[0], reverse=True)

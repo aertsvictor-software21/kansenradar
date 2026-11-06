@@ -79,7 +79,7 @@ def test_evidence_raises_confidence_and_lifts_caps():
     weak_i, weak_ev = build()
     strong_i, strong_ev = build(ev, saturation="laag", prices=3)
     weak, strong = score_idea(weak_i, weak_ev), score_idea(strong_i, strong_ev)
-    assert strong.confidence > 65 > weak.confidence
+    assert strong.confidence == 60 > weak.confidence  # desk research is capped at 60%
     assert strong.sub("Marktvraag").capped_by is None
     assert strong.total > weak.total
     assert strong.conclusion in (Conclusion.PROMISING, Conclusion.VERY_INTERESTING, Conclusion.EXPERIMENT)
@@ -91,7 +91,8 @@ def test_company_sources_count_less_than_official():
     company, _ = build([fact(t, SourceQuality.COMPANY) for t in topics], saturation="gemiddeld")
     a = score_idea(official, [fact(t) for t in topics]).confidence
     b = score_idea(company, [fact(t, SourceQuality.COMPANY) for t in topics]).confidence
-    assert a - b == 10
+    # facts from one single company website are not corroborated and do not count
+    assert b < a and b <= 15
 
 
 def test_fatal_flaw_rejects_regardless_of_score():
@@ -125,3 +126,24 @@ def test_rank_orders_by_conclusion_then_score_and_persists():
         row = s.get(IdeaRow, strong.id)
         assert row.conclusion == ranked[0].scorecard.conclusion.value and row.score_total > 0
     assert rank([weak]) == []  # unscored ideas are not ranked
+
+
+def test_single_blog_does_not_support_a_topic_but_two_sites_do():
+    one = [fact(ResearchTopic.DEMAND, SourceQuality.COMPANY)]
+    two = one + [Evidence(claim="Tweede bron", type=EvidenceType.FACT, topic=ResearchTopic.DEMAND.value,
+                          source_url="https://andere-site.nl", quote="nog een citaat uit een andere bron",
+                          verified=True, retrieved_at=NOW, source_quality=SourceQuality.COMPANY)]
+    i1, _ = build(one)
+    i2, _ = build(two)
+    assert score_idea(i1, one).sub("Marktvraag").capped_by.startswith("geen geverifieerd feit")
+    assert score_idea(i2, two).sub("Marktvraag").capped_by is None  # two websites: supported
+
+
+def test_customer_validation_lifts_the_confidence_cap():
+    ev = [fact(t) for t in list(ResearchTopic)[:8]]
+    validated = ev + [Evidence(claim="3 van 12 aannemers betaalden vooraf voor een pilot.", type=EvidenceType.FACT,
+                               topic="klantvalidatie", source_url="https://eigen-validatietest.local",
+                               quote="3 voorafbetalingen ontvangen", verified=True, retrieved_at=NOW)]
+    i, _ = build(validated, saturation="laag", prices=3)
+    sc = score_idea(i, validated)
+    assert sc.confidence > 60

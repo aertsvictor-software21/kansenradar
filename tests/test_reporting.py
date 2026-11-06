@@ -74,3 +74,30 @@ def test_cli_full_pipeline_offline(tmp_path, monkeypatch, capsys):
         assert len(list((tmp_path / "rap" / "ideeen").glob("*.html"))) == 2
     finally:
         get_settings.cache_clear()
+
+
+def test_cli_reanalyse_wipes_old_evidence(tmp_path, monkeypatch, capsys):
+    from kansenradar.cli import main
+    from kansenradar.config import get_settings
+    from kansenradar.storage import Repository, make_engine
+    db = tmp_path / "kr.db"
+    for k, v in {"KR_DATABASE_URL": f"sqlite:///{db}", "KR_EMBEDDER": "hashing", "KR_LLM_PROVIDER": "none",
+                 "KR_SEARCH_PROVIDER": "none", "KR_USE_OPEN_DATA": "false"}.items():
+        monkeypatch.setenv(k, v)
+    get_settings.cache_clear()
+    try:
+        main(["run", "--aantal", "3", "--top", "1", "--map", str(tmp_path / "r")])
+        repo = Repository(make_engine(f"sqlite:///{db}"))
+        idea = next(i for i in repo.list_ideas() if i.status is IdeaStatus.ANALYSED)
+        from kansenradar.domain import Evidence, EvidenceType
+        repo.add_evidence(idea.id, [Evidence(claim="Oude ruis uit een blog", type=EvidenceType.ESTIMATE,
+                                             topic="concurrenten", reasoning="oud")])
+        capsys.readouterr()
+        assert main(["heranalyseer", "--map", str(tmp_path / "r")]) == 0
+        out = capsys.readouterr().out
+        assert "Gewist:" in out and "Rangschikking" in out
+        topics = [e.topic for e in repo.evidence_for(idea.id)]
+        assert "concurrenten" not in topics and any(t.startswith("screening:") for t in topics)
+        assert repo.get_idea(idea.id).status is IdeaStatus.ANALYSED
+    finally:
+        get_settings.cache_clear()

@@ -46,6 +46,8 @@ class _LLMReview(BaseModel):
 
 RED_TEAM_INSTRUCTIONS = """\
 Je bent een bijzonder kritische investeerder. Je doel: bewijzen waarom dit idee zou mislukken. \
+Denk expliciet aan gratis alternatieven, ingebouwde functies van grote spelers (Microsoft, Google, \
+Apple, boekhoud- en sectorsoftware) en open-source oplossingen: die maken een markt vaak verzadigd. \
 Beantwoord elke investeerdersvraag (ja/nee/onbekend) en benoem de grootste risico's met \
 kans en impact (1-5). Baseer je op het dossier; zeg 'onbekend' als het dossier en je kennis \
 tekortschieten. Verzin geen feiten, cijfers of bedrijven."""
@@ -92,7 +94,10 @@ def enrich_with_llm(llm, idea: Idea, base: CriticalReview) -> CriticalReview:
     checks = []
     for rule in base.checks:
         lc = llm_checks.get(rule.question)
-        keep_rule = lc is None or (rule.question in DATA_DRIVEN and rule.basis is not EvidenceType.HYPOTHESIS) \
+        # Web search misses free tools and big-tech features; the model may raise saturation.
+        raises_saturation = rule.question is InvestorQuestion.SATURATED and lc is not None and lc.verdict == "ja"
+        keep_rule = lc is None or (rule.question in DATA_DRIVEN and rule.basis is not EvidenceType.HYPOTHESIS
+                                   and not raises_saturation) \
             or (rule.verdict != "onbekend" and lc.verdict == "onbekend")
         if keep_rule:
             checks.append(rule)

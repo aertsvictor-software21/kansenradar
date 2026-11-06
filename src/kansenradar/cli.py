@@ -298,6 +298,40 @@ def cmd_kalibreer(args, settings) -> int:
     return 0 if all(r.ok for r in results) else 1
 
 
+def cmd_heranalyseer(args, settings) -> int:
+    """Wipe research-based results of analysed ideas and redo steps 3-8 with the current code."""
+    from kansenradar.domain import ScreeningDecision
+    repo = _repo(settings)
+    if args.idee:
+        ideas = [i for i in [repo.get_idea(args.idee)] if i is not None]
+    else:
+        ideas = [i for i in repo.list_ideas() if i.status in (IdeaStatus.RESEARCHED, IdeaStatus.ANALYSED)]
+    if not ideas:
+        print("Geen onderzochte ideeën om opnieuw te analyseren.")
+        return 0
+    for idea in ideas:
+        removed = repo.delete_evidence(idea.id)
+        idea.research = idea.competition = idea.finance = idea.review = idea.scorecard = None
+        idea.status = (IdeaStatus.SCREENED_PASS if idea.screening and idea.screening.decision is ScreeningDecision.PASS
+                       else IdeaStatus.SCREENED_DOUBT)
+        repo.save_idea(idea)
+        print(f"Gewist: {removed} bewijsstukken van {idea.title}")
+    budget = RunBudget(max_usd=settings.max_run_cost_usd, max_calls=settings.max_llm_calls_per_run)
+    llm = None if args.zonder_llm else build_llm_client(settings, budget)
+    ids = [i.id for i in ideas]
+    print(f"\nOpnieuw analyseren ({'LLM via ' + settings.llm_provider if llm else 'zonder LLM'})...")
+    print(research_ideas(repo, build_researcher(settings, llm), idea_ids=ids).summary())
+    analyse_competition(repo, CompetitorAnalyzer(search=build_search(settings), llm=llm), ids)
+    analyse_finance(repo, ids)
+    review_ideas(repo, llm, ids)
+    score_ideas(repo, ids, settings.evidence_max_age_days)
+    print(f"Rapport: {write_reports(repo, args.map).resolve()}\n\nRangschikking:")
+    cmd_ranking(args, settings)
+    if llm:
+        print(f"\nLLM-aanroepen: {len(budget.entries)} | kosten: ${budget.spent_usd:.2f}")
+    return 0
+
+
 def _line(idea) -> str:
     orig = f"orig. {idea.originality.score:>4.1f}" if idea.originality else ""
     prio = f"prio {idea.research_priority:.2f}" if idea.research_priority is not None else ""
@@ -430,6 +464,12 @@ def build_parser() -> argparse.ArgumentParser:
     kb = sub.add_parser("kalibreer", help="toets de beoordelingslogica op gelabelde gevallen")
     kb.add_argument("--bestand", help="JSON met gevallen (standaard: kalibratie/archetypes.json)")
     kb.set_defaults(func=cmd_kalibreer)
+
+    ha = sub.add_parser("heranalyseer", help="wis het onderzoek van geanalyseerde ideeën en doe het opnieuw")
+    ha.add_argument("--idee", help="één specifiek idee")
+    ha.add_argument("--map", default="rapporten")
+    ha.add_argument("--zonder-llm", action="store_true")
+    ha.set_defaults(func=cmd_heranalyseer)
 
     i = sub.add_parser("ideeen", help="toon ideeën")
     i.add_argument("--alle", action="store_true", help="ook afgewezen en duplicaten")
