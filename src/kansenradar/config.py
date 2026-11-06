@@ -43,6 +43,26 @@ class Settings(BaseSettings):
     use_open_data: bool = True
 
 
+def load_env_file(path: str = ".env") -> None:
+    """Make keys from .env (e.g. GROQ_API_KEY, TAVILY_API_KEY) visible as environment
+    variables. Existing environment variables always win."""
+    import os
+    from pathlib import Path
+
+    file = Path(path)
+    if not file.is_file():
+        return
+    for line in file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 @lru_cache
 def get_settings() -> Settings:
+    load_env_file()
     return Settings()

@@ -126,3 +126,17 @@ def test_factory_builds_free_client_with_overrides(monkeypatch):
 def test_ollama_needs_no_key():
     client = build_llm_client(Settings(llm_provider="ollama"), RunBudget())
     assert client is not None and client.free
+
+
+def test_env_file_keys_become_environment_variables(tmp_path, monkeypatch):
+    import os
+
+    from kansenradar.config import load_env_file
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("TAVILY_API_KEY", "bestaand")
+    env = tmp_path / ".env"
+    env.write_text('# commentaar\nGROQ_API_KEY="gsk_test"\nTAVILY_API_KEY=nieuw\n', encoding="utf-8")
+    load_env_file(str(env))
+    assert os.environ["GROQ_API_KEY"] == "gsk_test"
+    assert os.environ["TAVILY_API_KEY"] == "bestaand"  # existing values win
+    monkeypatch.delenv("GROQ_API_KEY")
