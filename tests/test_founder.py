@@ -25,8 +25,11 @@ def service(**kw):
     return i
 
 
-def test_founder_from_settings():
-    assert founder_from(Settings()) is None
+def test_founder_from_settings(monkeypatch):
+    # The user's own environment may already contain a founder profile.
+    monkeypatch.delenv("KR_FOUNDER_CAPITAL_EUR", raising=False)
+    monkeypatch.delenv("KR_FOUNDER_HOURS_PER_WEEK", raising=False)
+    assert founder_from(Settings(_env_file=None)) is None
     f = founder_from(Settings(founder_capital_eur=50, founder_hours_per_week=10))
     assert f.capital_eur == 50 and f.bootstrapped
 
