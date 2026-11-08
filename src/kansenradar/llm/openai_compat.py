@@ -100,6 +100,13 @@ class OpenAICompatBackend:
             self._sleep(wait)
 
     # --- HTTP with spacing and retries ------------------------------------
+    def _settle_tokens(self, model: str, actual: int) -> None:
+        """Replace the (pessimistic) reservation of the last request by the real usage."""
+        log_ = self._token_log.get(model)
+        if log_ and actual > 0:
+            t, _ = log_.pop()
+            log_.append((t, actual))
+
     def _post(self, body: dict, est_tokens: int = 0) -> dict:
         url = f"{self.preset.base_url}/chat/completions"
         self._reserve_tokens(body["model"], est_tokens)  # once per request; retries back off instead
@@ -185,6 +192,8 @@ class OpenAICompatBackend:
                     break
                 raise
             u = data.get("usage") or {}
+            self._settle_tokens(model, u.get("total_tokens") or
+                                u.get("prompt_tokens", 0) + u.get("completion_tokens", 0))
             usage.input_tokens += u.get("prompt_tokens", 0)
             usage.output_tokens += u.get("completion_tokens", 0)
             choice = (data.get("choices") or [{}])[0]

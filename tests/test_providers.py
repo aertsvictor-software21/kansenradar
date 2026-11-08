@@ -193,3 +193,13 @@ def test_oversized_prompt_is_refused_locally():
     client = client_for(backend_with([]))
     with pytest.raises(ProviderError, match="te groot"):
         client.structured(task="t", tier=Tier.SCREENING, prompt="woord " * 30_000, schema=Out)
+
+
+
+def test_real_usage_replaces_pessimistic_estimate():
+    # responses report 120 tokens used; the estimate per call is far higher
+    backend = backend_with([reply('{"keep": true, "reason": "ok"}')] * 6)
+    client = client_for(backend)
+    for _ in range(6):
+        client.structured(task="t", tier=Tier.SCREENING, prompt="woord " * 1_500, schema=Out)
+    assert sum(backend._sleep.__self__.slept) < 20  # no minute-long waits needed
