@@ -163,13 +163,17 @@ def test_env_file_keys_become_environment_variables(tmp_path, monkeypatch):
 def test_requests_fit_the_free_tier_token_budget():
     seen = []
     big_prompt = "woord " * 1_500  # ~3.000 tokens
-    backend = backend_with([reply('{"keep": true, "reason": "ok"}')] * 4, seen)
+    heavy = httpx.Response(200, json={"choices": [{"message": {"content": '{"keep": true, "reason": "ok"}'},
+                                                    "finish_reason": "stop"}],
+                                       "usage": {"prompt_tokens": 3_500, "completion_tokens": 1_500,
+                                                 "total_tokens": 5_000}})
+    backend = backend_with([heavy] * 4, seen)
     client = client_for(backend)
     for _ in range(4):
         client.structured(task="t", tier=Tier.SCREENING, prompt=big_prompt, schema=Out)
     # each request: prompt + max_tokens stays below the 8.000 tokens/minute limit
     assert all(b["max_tokens"] <= 2_500 for b in seen)
-    # four big requests do not fit in one minute: the backend waited instead of being refused
+    # four requests of 5.000 real tokens do not fit in one minute: the backend waited instead of being refused
     assert sum(backend._sleep.__self__.slept) >= 50
 
 
