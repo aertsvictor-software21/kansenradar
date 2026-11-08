@@ -23,7 +23,7 @@ from kansenradar.research.verify import verify_quote
 
 log = logging.getLogger(__name__)
 
-MAX_PAGE_CHARS = 12_000
+MAX_PAGE_CHARS = 8_000  # fewer tokens per call: faster within free-tier limits
 _SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
@@ -118,6 +118,9 @@ class LLMExtractor:
     def extract(self, page: FetchedPage, topic: ResearchTopic, question: str) -> ExtractionResult:
         from kansenradar.llm import Tier
 
+        # Skip pages that do not even mention the subject: saves a (slow, rate-limited) LLM call.
+        if len(set(tokens(question)) & set(tokens(page.text[:MAX_PAGE_CHARS]))) < 2:
+            return ExtractionResult()
         prompt = (f"Onderzoeksvraag ({topic.value}): {question}\n\nBron: {page.title} ({page.url})\n"
                   f"Brontekst:\n{page.text[:MAX_PAGE_CHARS]}")
         try:

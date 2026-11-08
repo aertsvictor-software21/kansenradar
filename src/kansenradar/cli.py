@@ -286,7 +286,8 @@ def cmd_run(args, settings) -> int:
         ("8/8 Rapport", lambda: str(write_reports(repo, args.map).resolve())),
     ]
     for label, step in steps:
-        print(f"\n== {label} ==\n{step()}")
+        print(f"\n== {label} ==", flush=True)
+        print(step(), flush=True)
     print("\nRangschikking:")
     cmd_ranking(args, settings)
     if llm:

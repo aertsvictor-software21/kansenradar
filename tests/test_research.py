@@ -179,7 +179,8 @@ def test_llm_extractor_drops_invented_quotes():
         _LLMClaim(claim="Irrelevant", quote="Veel aannemers gebruiken nog papier of Excel", relevant=False),
     ])
     llm = LLMClient(FakeBackend({"extract_claims": claims}), RunBudget(max_calls=5), free=True)
-    r = LLMExtractor(llm).extract(page(), ResearchTopic.PROBLEM, "vraag")
+    r = LLMExtractor(llm).extract(page(), ResearchTopic.PROBLEM,
+                                  "Hoeveel tijd kost administratie van werfverslagen voor aannemers?")
     assert len(r.evidence) == 1 and r.rejected_quotes == 1
     assert r.evidence[0].type is EvidenceType.FACT and r.evidence[0].source_quality is SourceQuality.INDUSTRY
 
@@ -253,3 +254,10 @@ def test_offline_research_with_user_url_only():
     assert summary.queries_run == 0 and summary.pages_fetched == 1
     assert "geen webzoekfunctie" in summary.mode and "1 eigen bron" in summary.mode
     assert evidence
+
+
+def test_llm_extractor_skips_unrelated_pages_without_calling_the_model():
+    backend = FakeBackend({"extract_claims": _LLMClaims(claims=[])})
+    llm = LLMClient(backend, RunBudget(max_calls=5), free=True)
+    r = LLMExtractor(llm).extract(page(), ResearchTopic.PRICING, "Wat kost een hondenkapper in Gent?")
+    assert r.evidence == [] and backend.calls == []

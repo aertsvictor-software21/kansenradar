@@ -20,6 +20,7 @@ from kansenradar.domain import (
     TopicCoverage,
 )
 from kansenradar.history.embeddings import tokens
+from kansenradar.progress import progress
 from kansenradar.research.extract import RuleExtractor
 from kansenradar.research.fetch import FetchSkipped, PageFetcher
 from kansenradar.research.opendata import EurostatClient, market_size_evidence
@@ -136,7 +137,8 @@ class MarketResearcher:
                 stats["rejected"] += result.rejected_quotes
 
         if not isinstance(self.search, NoSearch):
-            for topic, template in QUERIES.items():
+            for n, (topic, template) in enumerate(QUERIES.items(), 1):
+                progress(f"onderzoek '{idea.title[:50]}': {topic.value} ({n}/10)")
                 query = template.format(**fmt)
                 stats["queries"] += 1
                 for hit in self.search.search(query, max_results=self.pages_per_query):

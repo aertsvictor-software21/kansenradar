@@ -97,7 +97,9 @@ class IdeaGenerator:
 
     def generate(self, seeds: list[Seed], per_seed: int = 2) -> list[GeneratedCandidate]:
         out: list[GeneratedCandidate] = []
-        for seed in seeds:
+        from kansenradar.progress import progress
+        for n, seed in enumerate(seeds, 1):
+            progress(f"ideeën bedenken: invalshoek {n}/{len(seeds)}")
             if self.llm is not None:
                 try:
                     out.extend(self._generate_llm(seed, per_seed))

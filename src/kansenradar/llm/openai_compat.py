@@ -95,7 +95,10 @@ class OpenAICompatBackend:
                     raise ProviderError(f"{self.preset.name}: HTTP {r.status_code} na herhaalde pogingen")
                 retry_after = r.headers.get("retry-after")
                 delay = float(retry_after) if retry_after and retry_after.isdigit() else 2 ** (attempt + 1)
-                log.info("%s: HTTP %s, opnieuw over %.0fs", self.preset.name, r.status_code, delay)
+                from kansenradar.progress import progress
+                progress(f"{self.preset.name}: limiet van de gratis versie bereikt, even wachten "
+                         f"({min(delay, 60):.0f} s)" if r.status_code == 429 else
+                         f"{self.preset.name}: HTTP {r.status_code}, opnieuw over {min(delay, 60):.0f} s")
                 self._sleep(min(delay, 60))
                 continue
             if r.status_code >= 400:
