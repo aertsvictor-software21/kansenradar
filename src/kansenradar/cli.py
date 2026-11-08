@@ -318,6 +318,7 @@ def cmd_heranalyseer(args, settings) -> int:
     for idea in ideas:
         removed = repo.delete_evidence(idea.id)
         idea.research = idea.competition = idea.finance = idea.review = idea.scorecard = None
+        idea.research_done = []
         idea.status = (IdeaStatus.SCREENED_PASS if idea.screening and idea.screening.decision is ScreeningDecision.PASS
                        else IdeaStatus.SCREENED_DOUBT)
         repo.save_idea(idea)

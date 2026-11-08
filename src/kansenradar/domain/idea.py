@@ -77,6 +77,7 @@ class Idea(IdeaCandidate):
     screening: ScreeningResult | None = None
     research_priority: float | None = Field(default=None, description="Volgorde voor fase 4.")
     research: ResearchSummary | None = None
+    research_done: list[str] = Field(default_factory=list, description="Afgewerkte onderzoeksstappen (hervatten).")
     competition: CompetitionAnalysis | None = None
     finance: FinancialModel | None = None
     review: CriticalReview | None = None

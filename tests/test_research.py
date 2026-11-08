@@ -261,3 +261,37 @@ def test_llm_extractor_skips_unrelated_pages_without_calling_the_model():
     llm = LLMClient(backend, RunBudget(max_calls=5), free=True)
     r = LLMExtractor(llm).extract(page(), ResearchTopic.PRICING, "Wat kost een hondenkapper in Gent?")
     assert r.evidence == [] and backend.calls == []
+
+
+
+def test_interrupted_research_resumes_where_it_stopped():
+    class FlakySearch:
+        name = "test"
+
+        def __init__(self, fail_at):
+            self.fail_at, self.queries = fail_at, []
+
+        def search(self, query, max_results=5):
+            self.queries.append(query)
+            if len(self.queries) == self.fail_at:
+                raise KeyboardInterrupt  # the Chromebook switches off
+            return [type("H", (), {"url": "https://mijnbron.be/a", "title": "", "snippet": ""})()]
+
+    http = mock_web({"https://mijnbron.be/robots.txt": httpx.Response(404), "https://mijnbron.be/a": html()})
+    repo = Repository(make_engine("sqlite:///:memory:"))
+    first = idea()
+    repo.save_idea(first)
+    flaky = FlakySearch(fail_at=4)
+    with pytest.raises(KeyboardInterrupt):
+        research_ideas(repo, MarketResearcher(search=flaky, fetcher=PageFetcher(http=http)), top_n=1)
+    saved = repo.get_idea(first.id)
+    assert saved.research is None and len(saved.research_done) == 3
+    evidence_before = len(repo.evidence_for(first.id))
+    assert evidence_before > 0
+
+    resumed = FlakySearch(fail_at=999)
+    report = research_ideas(repo, MarketResearcher(search=resumed, fetcher=PageFetcher(http=http)), top_n=1)
+    assert len(resumed.queries) == 7  # only the 7 remaining topics
+    done = repo.get_idea(first.id)
+    assert done.status is IdeaStatus.RESEARCHED and report.ideas[0].id == first.id
+    assert done.research.topics_with_facts >= 1

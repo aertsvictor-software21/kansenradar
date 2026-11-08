@@ -30,7 +30,8 @@ class ResearchReport:
 
 def research_queue(repo: Repository) -> list[Idea]:
     ideas = [i for i in repo.list_ideas() if i.status in RESEARCHABLE and i.research is None]
-    return sorted(ideas, key=lambda i: i.research_priority or 0, reverse=True)
+    # Interrupted research first, so its saved work is used; then by priority.
+    return sorted(ideas, key=lambda i: (bool(i.research_done), i.research_priority or 0), reverse=True)
 
 
 def research_ideas(repo: Repository, researcher: MarketResearcher, top_n: int = 3,
@@ -42,7 +43,16 @@ def research_ideas(repo: Repository, researcher: MarketResearcher, top_n: int = 
         ideas = research_queue(repo)[:top_n]
     report = ResearchReport()
     for idea in ideas:
-        summary, evidence = researcher.research(idea, (extra_urls or {}).get(idea.id))
+        prior = [e for e in repo.evidence_for(idea.id) if not e.topic.startswith("screening:")] \
+            if idea.research_done else []
+
+        def checkpoint(step: str, new, idea=idea) -> None:
+            repo.add_evidence(idea.id, new)
+            idea.research_done.append(step)
+            repo.save_idea(idea)
+
+        summary, evidence = researcher.research(idea, (extra_urls or {}).get(idea.id),
+                                                checkpoint=checkpoint, prior=prior)
         idea.research = summary
         idea.status = IdeaStatus.RESEARCHED
         repo.add_evidence(idea.id, evidence)

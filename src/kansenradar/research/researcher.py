@@ -110,13 +110,23 @@ class MarketResearcher:
         self.pages_per_query = pages_per_query
         self.max_age_days = max_age_days
 
-    def research(self, idea: Idea, extra_urls: list[str] | None = None) -> tuple[ResearchSummary, list[Evidence]]:
+    def research(self, idea: Idea, extra_urls: list[str] | None = None, checkpoint=None,
+                 prior: list[Evidence] | None = None) -> tuple[ResearchSummary, list[Evidence]]:
+        """Research an idea. checkpoint(step, new_evidence) is called after every step so an
+        interrupted run can resume; steps listed in idea.research_done are skipped."""
         fmt = {"target": short_target(idea), "kern": key_terms(idea)}
         evidence: list[Evidence] = []
         stats = Counter()
+        done = set(idea.research_done)
 
-        if self.opendata is not None:
-            evidence += market_size_evidence(idea, self.opendata)
+        def save(step: str, new: list[Evidence]) -> None:
+            if checkpoint is not None:
+                checkpoint(step, new)
+
+        if self.opendata is not None and "opendata" not in done:
+            new = market_size_evidence(idea, self.opendata)
+            evidence += new
+            save("opendata", new)
 
         fetched: set[str] = set()
         skipped: set[str] = set()
@@ -138,17 +148,22 @@ class MarketResearcher:
 
         if not isinstance(self.search, NoSearch):
             for n, (topic, template) in enumerate(QUERIES.items(), 1):
+                if topic.name in done:
+                    progress(f"onderzoek '{idea.title[:50]}': {topic.value} ({n}/10) al gedaan, overgeslagen")
+                    continue
                 progress(f"onderzoek '{idea.title[:50]}': {topic.value} ({n}/10)")
                 query = template.format(**fmt)
                 stats["queries"] += 1
+                before = len(evidence)
                 for hit in self.search.search(query, max_results=self.pages_per_query):
                     process(hit.url, (topic,))
+                save(topic.name, evidence[before:])
         for url in extra_urls or []:
             process(url, USER_URL_TOPICS)
 
-        # Same quote from the same source only once.
+        # Same quote from the same source only once (including evidence from an interrupted run).
         unique: dict[tuple, Evidence] = {}
-        for ev in evidence:
+        for ev in (prior or []) + evidence:
             unique.setdefault((ev.source_url, ev.quote, ev.topic), ev)
         evidence = list(unique.values())
 
