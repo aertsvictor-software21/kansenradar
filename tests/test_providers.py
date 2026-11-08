@@ -38,7 +38,23 @@ def backend_with(responses: list[httpx.Response], seen: list | None = None):
         return queue.pop(0)
 
     http = httpx.Client(transport=httpx.MockTransport(handler))
-    return OpenAICompatBackend(PRESETS["groq"], api_key="test", http=http, sleep=lambda s: None)
+    clock = FakeClock()
+    return OpenAICompatBackend(PRESETS["groq"], api_key="test", http=http, sleep=clock.sleep, clock=clock)
+
+
+class FakeClock:
+    """Time that only moves when the code 'sleeps', so waiting is instant but correct."""
+
+    def __init__(self):
+        self.now = 1000.0
+        self.slept = []
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.slept.append(seconds)
+        self.now += seconds
 
 
 def client_for(backend):
@@ -61,7 +77,7 @@ def test_successful_call_is_free_and_sends_schema():
     assert client.budget.spent_usd == 0.0
     body = seen[0]
     assert body["model"] == "openai/gpt-oss-20b"
-    assert body["reasoning_effort"] == "low" and body["max_tokens"] >= 8000
+    assert body["reasoning_effort"] == "low" and body["max_tokens"] == 2_500
     assert body["response_format"] == {"type": "json_object"}
     assert '"reason"' in body["messages"][0]["content"]  # schema in system message
 
@@ -89,7 +105,7 @@ def test_rate_limit_is_retried():
 
 
 def test_provider_down_raises_provider_error():
-    client = client_for(backend_with([httpx.Response(503)] * 5))
+    client = client_for(backend_with([httpx.Response(503)] * 7))
     with pytest.raises(ProviderError):
         call(client)
 
@@ -141,3 +157,39 @@ def test_env_file_keys_become_environment_variables(tmp_path, monkeypatch):
     assert os.environ["GROQ_API_KEY"] == "gsk_test"
     assert os.environ["TAVILY_API_KEY"] == "bestaand"  # existing values win
     monkeypatch.delenv("GROQ_API_KEY")
+
+
+
+def test_requests_fit_the_free_tier_token_budget():
+    seen = []
+    big_prompt = "woord " * 1_500  # ~3.000 tokens
+    backend = backend_with([reply('{"keep": true, "reason": "ok"}')] * 4, seen)
+    client = client_for(backend)
+    for _ in range(4):
+        client.structured(task="t", tier=Tier.SCREENING, prompt=big_prompt, schema=Out)
+    # each request: prompt + max_tokens stays below the 8.000 tokens/minute limit
+    assert all(b["max_tokens"] <= 2_500 for b in seen)
+    # four big requests do not fit in one minute: the backend waited instead of being refused
+    assert sum(backend._sleep.__self__.slept) >= 50
+
+
+def test_models_spread_over_two_budgets():
+    assert PRESETS["groq"].models["analysis"] != PRESETS["groq"].models["extraction"]
+
+
+def test_invalid_json_error_from_provider_is_retried_once():
+    bad = httpx.Response(400, json={"error": {"code": "json_validate_failed", "message": "Failed to validate JSON"}})
+    client = client_for(backend_with([bad, reply('{"keep": true, "reason": "tweede keer"}')]))
+    assert call(client).reason == "tweede keer"
+
+
+def test_rate_limit_backoff_waits_long_enough():
+    backend = backend_with([httpx.Response(429), httpx.Response(429), reply('{"keep": true, "reason": "x"}')])
+    call(client_for(backend))
+    assert sum(backend._sleep.__self__.slept) >= 30  # 10 s + 20 s, not 2 s + 4 s
+
+
+def test_oversized_prompt_is_refused_locally():
+    client = client_for(backend_with([]))
+    with pytest.raises(ProviderError, match="te groot"):
+        client.structured(task="t", tier=Tier.SCREENING, prompt="woord " * 30_000, schema=Out)

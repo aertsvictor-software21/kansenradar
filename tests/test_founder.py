@@ -72,3 +72,8 @@ def test_bootstrapped_generation_prefers_services_and_constrains_llm_prompt():
     assert sum(k.endswith(":dienst") for k in keys) >= 3
     assert "30 dagen" in founder_instructions(FOUNDER) and "€ 50" in founder_instructions(FOUNDER)
     assert founder_instructions(None) == ""
+
+
+def test_count_zero_generates_nothing_even_for_bootstrapped_founder():
+    repo = Repository(make_engine("sqlite:///:memory:"))
+    assert run_generation(repo, HashingEmbedder(), llm=None, count=0, founder=FOUNDER).ideas == []

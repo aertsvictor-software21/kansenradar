@@ -49,7 +49,7 @@ def _evidence(idea: Idea) -> list[Evidence]:
 
 
 def screen_ideas(repo: Repository, llm=None, limit: int | None = None,
-                 batch_size: int = 5) -> ScreeningReport:
+                 batch_size: int = 3) -> ScreeningReport:
     ideas = repo.list_ideas(IdeaStatus.GENERATED)
     if limit is not None:
         ideas = ideas[:limit]

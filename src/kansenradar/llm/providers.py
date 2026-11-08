@@ -37,15 +37,20 @@ class ProviderPreset:
     min_interval_s: float = 0.0  # spacing between requests, for free-tier rate limits
     timeout_s: float = 120.0
     extra_headers: dict[str, str] = field(default_factory=dict)
+    # Free-tier token budget per minute per model (prompt + max output), if known.
+    tpm_limit: int | None = None
+    # Cap on output tokens per request (keeps requests inside the TPM budget).
+    max_output_tokens: int | None = None
 
 
 PRESETS: dict[str, ProviderPreset] = {
     "groq": ProviderPreset(
         name="groq", base_url="https://api.groq.com/openai/v1", api_key_env="GROQ_API_KEY",
         # Llama 3.x models were shut down for free tiers on 2026-08-16; Groq's replacements:
-        models={"analysis": "openai/gpt-oss-120b", "extraction": "openai/gpt-oss-120b",
+        # Each model has its own free-tier budget: spread the work over two models.
+        models={"analysis": "openai/gpt-oss-120b", "extraction": "openai/gpt-oss-20b",
                 "screening": "openai/gpt-oss-20b"},
-        free=True, min_interval_s=2.5,
+        free=True, min_interval_s=2.5, tpm_limit=8_000, max_output_tokens=2_500,
     ),
     "gemini": ProviderPreset(
         name="gemini", base_url="https://generativelanguage.googleapis.com/v1beta/openai",

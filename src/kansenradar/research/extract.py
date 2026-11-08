@@ -23,7 +23,7 @@ from kansenradar.research.verify import verify_quote
 
 log = logging.getLogger(__name__)
 
-MAX_PAGE_CHARS = 8_000  # fewer tokens per call: faster within free-tier limits
+MAX_PAGE_CHARS = 5_000  # fewer tokens per call: fits free-tier limits (~1.700 tokens)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")
 
 

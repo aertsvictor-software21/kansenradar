@@ -12,6 +12,7 @@ import json
 import logging
 import re
 import time
+from collections import defaultdict, deque
 from typing import Any
 
 import httpx
@@ -62,8 +63,9 @@ class OpenAICompatBackend:
         preset: ProviderPreset,
         api_key: str | None = None,
         http: httpx.Client | None = None,
-        max_retries: int = 4,
+        max_retries: int = 6,
         sleep=time.sleep,
+        clock=time.monotonic,
     ) -> None:
         self.preset = preset
         headers = {"Content-Type": "application/json", **preset.extra_headers}
@@ -73,11 +75,34 @@ class OpenAICompatBackend:
         self.headers = headers
         self.max_retries = max_retries
         self._sleep = sleep
+        self._clock = clock
         self._last_request = 0.0
+        self._token_log: dict[str, deque] = defaultdict(deque)  # model -> (time, tokens)
+
+    # --- free-tier token budget ---------------------------------------------
+    def _reserve_tokens(self, model: str, tokens: int) -> None:
+        """Wait until this request fits in the model's tokens-per-minute budget."""
+        limit = self.preset.tpm_limit
+        if not limit:
+            return
+        log_ = self._token_log[model]
+        while True:
+            now = self._clock()
+            while log_ and now - log_[0][0] >= 60:
+                log_.popleft()
+            used = sum(t for _, t in log_)
+            if used + tokens <= limit or not log_:
+                log_.append((now, tokens))
+                return
+            wait = 60 - (now - log_[0][0]) + 0.5
+            from kansenradar.progress import progress
+            progress(f"{self.preset.name}: gratis limiet per minuut bijna op, even wachten ({wait:.0f} s)")
+            self._sleep(wait)
 
     # --- HTTP with spacing and retries ------------------------------------
-    def _post(self, body: dict) -> dict:
+    def _post(self, body: dict, est_tokens: int = 0) -> dict:
         url = f"{self.preset.base_url}/chat/completions"
+        self._reserve_tokens(body["model"], est_tokens)  # once per request; retries back off instead
         for attempt in range(self.max_retries + 1):
             wait = self.preset.min_interval_s - (time.monotonic() - self._last_request)
             if wait > 0:
@@ -93,8 +118,12 @@ class OpenAICompatBackend:
             if r.status_code == 429 or r.status_code >= 500:
                 if attempt == self.max_retries:
                     raise ProviderError(f"{self.preset.name}: HTTP {r.status_code} na herhaalde pogingen")
-                retry_after = r.headers.get("retry-after")
-                delay = float(retry_after) if retry_after and retry_after.isdigit() else 2 ** (attempt + 1)
+                try:
+                    retry_after = float(r.headers.get("retry-after", ""))
+                except ValueError:
+                    retry_after = 0.0
+                # Free-tier limits are per minute: back off generously.
+                delay = max(retry_after, 10.0 * (attempt + 1)) if r.status_code == 429 else 2 ** (attempt + 1)
                 from kansenradar.progress import progress
                 progress(f"{self.preset.name}: limiet van de gratis versie bereikt, even wachten "
                          f"({min(delay, 60):.0f} s)" if r.status_code == 429 else
@@ -105,6 +134,24 @@ class OpenAICompatBackend:
                 raise ProviderError(f"{self.preset.name}: HTTP {r.status_code}: {r.text[:300]}")
             return r.json()
         raise ProviderError("onbereikbaar")  # pragma: no cover
+
+    def _output_budget(self, model: str, requested: int, prompt_tokens: int) -> int:
+        cap = self.preset.max_output_tokens
+        if _is_reasoning(model):
+            # Reasoning models think before answering; without a cap give them plenty of room.
+            out = cap if cap else max(requested, MIN_REASONING_TOKENS)
+        else:
+            out = min(requested, cap) if cap else requested
+        if self.preset.tpm_limit:
+            out = min(out, int(self.preset.tpm_limit * 0.95) - prompt_tokens)
+            if out < 400:
+                raise ProviderError(f"{self.preset.name}: aanvraag te groot voor de gratis limiet per minuut")
+        return out
+
+    def _reasoning_effort(self, effort: str) -> str:
+        if self.preset.tpm_limit:  # tight free-tier budget: think briefly
+            return "medium" if effort in ("high", "xhigh", "max") else "low"
+        return {"low": "low", "medium": "medium"}.get(effort, "high")
 
     # --- structured call ----------------------------------------------------
     def parse(self, *, task, model, system, user, schema, max_tokens, effort, tools) -> LLMResponse:
@@ -118,15 +165,25 @@ class OpenAICompatBackend:
         parsed = None
         stop_reason = None
         for attempt in range(2):  # first try + one repair
+            prompt_tokens = sum(len(m["content"]) for m in messages) // 3 + 50  # conservative estimate
+            out_tokens = self._output_budget(model, max_tokens, prompt_tokens)
             body = {
-                "model": model, "messages": messages,
-                # Reasoning models spend tokens on thinking first; keep enough room for the answer.
-                "max_tokens": max(max_tokens, MIN_REASONING_TOKENS) if _is_reasoning(model) else max_tokens,
+                "model": model, "messages": messages, "max_tokens": out_tokens,
                 "response_format": {"type": "json_object"},
             }
             if _is_reasoning(model):
-                body["reasoning_effort"] = {"low": "low", "medium": "medium"}.get(effort, "high")
-            data = self._post(body)
+                body["reasoning_effort"] = self._reasoning_effort(effort)
+            try:
+                data = self._post(body, prompt_tokens + out_tokens)
+            except ProviderError as exc:
+                # The provider rejected malformed model output: give it one more chance.
+                if any(code in str(exc) for code in ("json_validate_failed", "output_parse_failed")):
+                    log.info("%s: model gaf geen geldig JSON voor taak %s (poging %d)",
+                             self.preset.name, task, attempt + 1)
+                    if attempt == 0:
+                        continue
+                    break
+                raise
             u = data.get("usage") or {}
             usage.input_tokens += u.get("prompt_tokens", 0)
             usage.output_tokens += u.get("completion_tokens", 0)

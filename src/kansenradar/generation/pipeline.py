@@ -64,11 +64,13 @@ def run_generation(
     engine = OriginalityEngine()
     used = repo.used_seed_keys()
     seeds = []
+    if count <= 0:  # e.g. 'run --aantal 0': only continue with existing ideas
+        founder = None
     if founder is not None and founder.bootstrapped:
         # Services first: they fit a founder with almost no capital.
         seeds = [sd for sd in engine.catalog
                  if sd.tech is not None and sd.tech.key == "dienst" and sd.key not in used][: max(1, count // 2)]
-    seeds += engine.seeds(
+    seeds += [] if count <= 0 else engine.seeds(
         count - len(seeds), sectors=sectors, strategies=strategies,
         exclude_keys=used | {sd.key for sd in seeds}, rng_seed=rng_seed, template_only=llm is None,
     )
