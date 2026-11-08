@@ -41,6 +41,8 @@ class ProviderPreset:
     tpm_limit: int | None = None
     # Cap on output tokens per request (keeps requests inside the TPM budget).
     max_output_tokens: int | None = None
+    # When a model's daily quota is used up, continue with this model instead.
+    fallback_models: dict[str, str] = field(default_factory=dict)
 
 
 PRESETS: dict[str, ProviderPreset] = {
@@ -51,6 +53,7 @@ PRESETS: dict[str, ProviderPreset] = {
         models={"analysis": "openai/gpt-oss-120b", "extraction": "openai/gpt-oss-20b",
                 "screening": "openai/gpt-oss-20b"},
         free=True, min_interval_s=2.5, tpm_limit=8_000, max_output_tokens=2_500,
+        fallback_models={"openai/gpt-oss-120b": "openai/gpt-oss-20b"},
     ),
     "gemini": ProviderPreset(
         name="gemini", base_url="https://generativelanguage.googleapis.com/v1beta/openai",

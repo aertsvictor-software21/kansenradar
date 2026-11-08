@@ -38,6 +38,15 @@ class ProviderError(ConnectionError):
     """Provider unreachable or keeps failing; callers fall back to non-LLM paths."""
 
 
+class DailyLimitError(ProviderError):
+    """The model's daily quota is used up: waiting minutes will not help."""
+
+
+def _is_daily_limit(response: httpx.Response, retry_after: float) -> bool:
+    text = response.text.lower()
+    return "per day" in text or "(tpd)" in text or "(rpd)" in text or retry_after > 120
+
+
 def extract_json(text: str) -> Any:
     text = _FENCE.sub("", text.strip()).strip()
     try:
@@ -78,6 +87,7 @@ class OpenAICompatBackend:
         self._clock = clock
         self._last_request = 0.0
         self._token_log: dict[str, deque] = defaultdict(deque)  # model -> (time, tokens)
+        self._exhausted: set[str] = set()  # models whose daily quota is used up
 
     # --- free-tier token budget ---------------------------------------------
     def _reserve_tokens(self, model: str, tokens: int) -> None:
@@ -122,6 +132,13 @@ class OpenAICompatBackend:
                     raise ProviderError(f"{self.preset.name} onbereikbaar: {exc}") from exc
                 self._sleep(2 ** attempt)
                 continue
+            if r.status_code == 429:
+                try:
+                    ra = float(r.headers.get("retry-after", ""))
+                except ValueError:
+                    ra = 0.0
+                if _is_daily_limit(r, ra):
+                    raise DailyLimitError(f"{self.preset.name}: daglimiet bereikt voor {body['model']}")
             if r.status_code == 429 or r.status_code >= 500:
                 if attempt == self.max_retries:
                     raise ProviderError(f"{self.preset.name}: HTTP {r.status_code} na herhaalde pogingen")
@@ -164,6 +181,23 @@ class OpenAICompatBackend:
     def parse(self, *, task, model, system, user, schema, max_tokens, effort, tools) -> LLMResponse:
         if tools:
             raise NotImplementedError("Server-side tools zijn niet beschikbaar bij deze provider.")
+        # A model whose daily quota is used up is skipped for the rest of the run.
+        while model in self._exhausted and model in self.preset.fallback_models:
+            model = self.preset.fallback_models[model]
+        try:
+            return self._parse(task=task, model=model, system=system, user=user, schema=schema,
+                               max_tokens=max_tokens, effort=effort)
+        except DailyLimitError:
+            self._exhausted.add(model)
+            fallback = self.preset.fallback_models.get(model)
+            if not fallback:
+                raise
+            from kansenradar.progress import progress
+            progress(f"{self.preset.name}: daglimiet van {model} bereikt, verder met {fallback}")
+            return self.parse(task=task, model=fallback, system=system, user=user, schema=schema,
+                              max_tokens=max_tokens, effort=effort, tools=tools)
+
+    def _parse(self, *, task, model, system, user, schema, max_tokens, effort) -> LLMResponse:
         messages = [
             {"role": "system", "content": system + "\n\n" + schema_instruction(schema)},
             {"role": "user", "content": user},

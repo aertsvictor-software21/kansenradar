@@ -207,3 +207,27 @@ def test_real_usage_replaces_pessimistic_estimate():
     for _ in range(6):
         client.structured(task="t", tier=Tier.SCREENING, prompt="woord " * 1_500, schema=Out)
     assert sum(backend._sleep.__self__.slept) < 20  # no minute-long waits needed
+
+
+
+def test_daily_limit_switches_to_smaller_model_without_waiting():
+    seen = []
+    daily = httpx.Response(429, json={"error": {"message": "Rate limit reached for model `openai/gpt-oss-120b` "
+                                                "on tokens per day (TPD): Limit 200000, Used 199500"}})
+    backend = backend_with([daily, reply('{"keep": true, "reason": "klein model"}'),
+                            reply('{"keep": true, "reason": "weer klein"}')], seen)
+    client = client_for(backend)
+    out = client.structured(task="t", tier=Tier.ANALYSIS, prompt="Beoordeel", schema=Out)
+    assert out.reason == "klein model"
+    assert [b["model"] for b in seen] == ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+    assert sum(backend._sleep.__self__.slept) < 10  # no minute-long waiting on a daily limit
+    # later calls go straight to the smaller model
+    client.structured(task="t", tier=Tier.ANALYSIS, prompt="Nog eens", schema=Out)
+    assert seen[-1]["model"] == "openai/gpt-oss-20b"
+
+
+def test_daily_limit_on_last_model_falls_back_to_rules():
+    daily = httpx.Response(429, json={"error": {"message": "tokens per day (TPD) reached"}})
+    client = client_for(backend_with([daily]))
+    with pytest.raises(ProviderError):
+        call(client)  # screening already uses the small model; caller falls back to rules
