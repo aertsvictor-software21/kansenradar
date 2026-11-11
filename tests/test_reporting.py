@@ -101,3 +101,20 @@ def test_cli_reanalyse_wipes_old_evidence(tmp_path, monkeypatch, capsys):
         assert repo.get_idea(idea.id).status is IdeaStatus.ANALYSED
     finally:
         get_settings.cache_clear()
+
+
+
+def test_pdf_export_one_file_per_analysed_idea(tmp_path):
+    import pytest
+    pytest.importorskip("weasyprint")
+    from kansenradar.reporting.pdf import write_pdfs
+    repo = Repository(make_engine("sqlite:///:memory:"))
+    idea, ev = analysed(title="Google-profiel onderhoud voor kappers")
+    other, _ = build(title="Niet geanalyseerd")
+    repo.save_idea(idea)
+    repo.add_evidence(idea.id, ev)
+    repo.save_idea(other)
+    paths = write_pdfs(repo, tmp_path)
+    assert len(paths) == 1 and paths[0].read_bytes().startswith(b"%PDF")
+    assert "google-profiel-onderhoud-voor-kappers" in paths[0].name
+    assert paths[0].stat().st_size > 5_000

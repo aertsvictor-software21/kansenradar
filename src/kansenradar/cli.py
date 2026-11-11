@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import logging
 import sys
 
@@ -256,6 +257,24 @@ def cmd_ranking(args, settings) -> int:
     return 0
 
 
+def cmd_pdf(args, settings) -> int:
+    from kansenradar.reporting.pdf import PdfUnavailable, write_pdfs
+    try:
+        paths = write_pdfs(_repo(settings), args.map, [args.idee] if args.idee else None)
+    except PdfUnavailable:
+        print("De PDF-module is niet geïnstalleerd. Installeer ze eenmalig met:\n"
+              "  sudo apt install -y libpango-1.0-0 libpangoft2-1.0-0\n"
+              '  pip install -e ".[pdf]"')
+        return 1
+    if not paths:
+        print("Geen volledig geanalyseerde ideeën. Voer eerst 'run' uit.")
+        return 0
+    for path in paths:
+        print(f"  {path}")
+    print(f"\n{len(paths)} PDF('s) in de map: {Path(args.map).resolve()}")
+    return 0
+
+
 def cmd_rapport(args, settings) -> int:
     index = write_reports(_repo(settings), args.map)
     print(f"Dashboard en rapporten geschreven: {index.resolve()}")
@@ -466,6 +485,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     rk = sub.add_parser("ranking", help="rangschikking van alle gescoorde ideeën")
     rk.set_defaults(func=cmd_ranking)
+
+    pd = sub.add_parser("pdf", help="zet elk geanalyseerd idee in een eigen PDF (A4)")
+    pd.add_argument("--map", default="rapporten/pdf", help="uitvoermap (standaard: rapporten/pdf)")
+    pd.add_argument("--idee", help="één specifiek idee")
+    pd.set_defaults(func=cmd_pdf)
 
     rp = sub.add_parser("rapport", help="schrijf dashboard (index.html) en rapporten per idee")
     rp.add_argument("--map", default="rapporten", help="uitvoermap (standaard: rapporten)")
